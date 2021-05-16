@@ -10,6 +10,7 @@ pub enum Token {
     CommentToken(String),
     // ErrorToken, TODO: i'll implement if i feel like it.
     // DoctypeToken(String), TODO: i'll implement if i feel like it.
+    Eof,
 }
 
 pub struct ElementData {
@@ -31,6 +32,7 @@ impl fmt::Debug for Token {
                 write!(f, "<{} />", Self::element_to_string(element))
             }
             Token::CommentToken(ref s) => write!(f, "<!-- {} -->", s),
+            Token::Eof => write!(f, ""),
         }
     }
 }
