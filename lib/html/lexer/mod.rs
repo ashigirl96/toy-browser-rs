@@ -56,8 +56,12 @@ impl<'a> Lexer<'a> {
                 };
                 Token::EndTagToken(tag_name)
             }
-            Some(_) => Token::EndTagToken("hoge".to_string()),
-            None => panic!("cannot parse token"),
+            Some('!') => {
+                self.input.next();
+                let comment = self.expect_comment();
+                Token::CommentToken(comment)
+            }
+            _ => panic!("cannot parse token"),
         }
     }
 
@@ -100,6 +104,16 @@ impl<'a> Lexer<'a> {
         self.skip_next_ch(&'"');
         self.skip_whitespace();
         (key, value)
+    }
+
+    fn expect_comment(&mut self) -> String {
+        self.skip_next_ch(&'-');
+        self.skip_next_ch(&'-');
+        let comment = self.consume(&|x| x != &'-');
+        self.skip_next_ch(&'-');
+        self.skip_next_ch(&'-');
+        self.skip_next_ch(&'>');
+        comment
     }
 
     fn consume_text(&mut self) -> Token {
@@ -236,6 +250,22 @@ mod tests {
             Token::EndTagToken("div".to_string()),
             Token::EndTagToken("div".to_string()),
             Token::EndTagToken("div".to_string()),
+            Token::Eof,
+        ];
+        for expect in expects {
+            let token = lexer.next_token();
+            assert_eq!(token, expect);
+        }
+    }
+
+    #[test]
+    fn test_consume_comment() {
+        let input = r#"
+<!-- TODO: implement -->
+"#;
+        let mut lexer = Lexer::new(input);
+        let expects = vec![
+            Token::CommentToken(" TODO: implement ".to_string()),
             Token::Eof,
         ];
         for expect in expects {
