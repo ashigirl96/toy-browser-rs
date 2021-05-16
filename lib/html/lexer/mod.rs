@@ -183,6 +183,7 @@ mod tests {
                     "https://example.com".to_string(),
                 )]),
             )),
+            Token::Eof,
         ];
         for expect in expects {
             let token = lexer.next_token();
@@ -215,6 +216,7 @@ mod tests {
                     "https://example.com".to_string(),
                 )]),
             )),
+            Token::Eof,
         ];
         for expect in expects {
             let token = lexer.next_token();
@@ -234,6 +236,7 @@ mod tests {
             Token::EndTagToken("div".to_string()),
             Token::EndTagToken("div".to_string()),
             Token::EndTagToken("div".to_string()),
+            Token::Eof,
         ];
         for expect in expects {
             let token = lexer.next_token();
