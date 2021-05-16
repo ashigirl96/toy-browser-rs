@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-#[allow(dead_code)]
+#[derive(PartialEq, Clone)]
 pub enum Token {
     TextToken(String),
     StartTagToken(ElementData),
@@ -11,8 +11,10 @@ pub enum Token {
     // ErrorToken, TODO: i'll implement if i feel like it.
     // DoctypeToken(String), TODO: i'll implement if i feel like it.
     Eof,
+    Illegal,
 }
 
+#[derive(PartialEq, Clone)]
 pub struct ElementData {
     tag_name: String,
     attributes: Attributes,
@@ -32,7 +34,8 @@ impl fmt::Debug for Token {
                 write!(f, "<{} />", Self::element_to_string(element))
             }
             Token::CommentToken(ref s) => write!(f, "<!-- {} -->", s),
-            Token::Eof => write!(f, ""),
+            Token::Eof => write!(f, "EOF"),
+            Token::Illegal => write!(f, "ILLEGAL"),
         }
     }
 }
