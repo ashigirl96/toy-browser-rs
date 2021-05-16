@@ -29,13 +29,33 @@ impl<'a> Lexer<'a> {
     }
 
     fn consume_tag(&mut self) -> Token {
-        self.input.next();
-        match self.input.next() {
+        self.input.next(); // skip `<`
+        match self.input.peek() {
+            Some(ch) if ch.is_alphanumeric() => {
+                let tag_name = self.expect_tag_name();
+                let attributes = match self.input.peek() {
+                    Some('>') => {
+                        self.input.next();
+                        Attributes::new()
+                    }
+                    Some('a'..='z' | 'A'..='Z') => self.expect_attributes(),
+                    _ => {
+                        panic!("ERROR");
+                    }
+                };
+                Token::StartTagToken(ElementData::new(tag_name, attributes))
+            }
             Some('>') => {
+                self.input.next(); // skip `>`
                 Token::StartTagToken(ElementData::new(String::from("div"), Attributes::new()))
             }
             Some('/') => {
+                self.input.next(); // skip `/`
                 let tag_name = self.expect_tag_name();
+                match self.input.peek() {
+                    Some('>') => self.input.next(),
+                    _ => None,
+                };
                 Token::EndTagToken(tag_name)
             }
             Some(_) => Token::EndTagToken("hoge".to_string()),
@@ -53,27 +73,61 @@ impl<'a> Lexer<'a> {
             }
         }
         self.skip_whitespace();
-        match self.input.peek() {
-            Some('>') => self.input.next(),
-            _ => None,
-        };
         if tag_name.is_empty() {
             return String::from("div");
         }
         tag_name
     }
 
-    fn consume_text(&mut self) -> Token {
-        let mut text = String::new();
-        while let Some(ch) = &self.input.next() {
-            // TODO: consider all of words
-            if ch.is_alphanumeric() || ch.is_whitespace() {
-                text.push_str(&ch.to_string());
-            } else {
-                break;
-            }
+    fn expect_attributes(&mut self) -> Attributes {
+        // id="names" class="table"
+        let mut attributes = Attributes::new();
+        loop {
+            let (key, value) = match self.input.peek() {
+                Some('>') => {
+                    self.input.next();
+                    break;
+                }
+                Some(_) => self.expect_attribute(),
+                None => panic!("Cannot parse token in expect_attributes"),
+            };
+            attributes.insert(key, value);
         }
+        attributes
+    }
+
+    fn expect_attribute(&mut self) -> (String, String) {
+        // e.g. class="table"
+        let key = self.consume(&|x| x.is_ascii_alphabetic());
+        self.skip_next_ch(&'=');
+        self.skip_next_ch(&'"');
+        let value = self.consume(&|x| x != &'"');
+        self.skip_next_ch(&'"');
+        self.skip_whitespace();
+        (key, value)
+    }
+
+    fn consume_text(&mut self) -> Token {
+        let text = self.consume(&|ch| ch.is_alphanumeric() || ch.is_whitespace());
         Token::TextToken(text)
+    }
+
+    fn skip_next_ch(&mut self, ch: &char) {
+        match self.input.peek() {
+            Some(c) if c == ch => self.input.next(),
+            _ => panic!("cannot found {}", ch),
+        };
+    }
+
+    fn consume<F>(&mut self, consume_condition: &F) -> String
+    where
+        F: Fn(&char) -> bool,
+    {
+        let mut s = String::new();
+        while let Some(ch) = self.input.next_if(consume_condition) {
+            s.push_str(&ch.to_string());
+        }
+        s
     }
 
     fn skip_whitespace(&mut self) {
@@ -83,8 +137,12 @@ impl<'a> Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::html::lexer::token::{ElementData, Token};
+    use crate::html::lexer::token::{Attributes, ElementData, Token};
     use crate::html::lexer::Lexer;
+
+    fn from_vec(attributes: Vec<(String, String)>) -> Attributes {
+        attributes.iter().cloned().collect()
+    }
 
     #[test]
     fn test_eof() {
@@ -100,6 +158,38 @@ mod tests {
 はろーわーるど"#;
         let mut lexer = Lexer::new(input);
         assert_eq!(lexer.next_token(), Token::TextToken(input.to_string()));
+    }
+
+    #[test]
+    fn test_consume_start_tag() {
+        let input = r#"
+<>
+<div  className="table"  id="names">
+<a href="https://example.com">
+"#;
+        let mut lexer = Lexer::new(input);
+        let attr = Attributes::new();
+        let expects = vec![
+            Token::StartTagToken(ElementData::new("div".to_string(), attr)),
+            Token::StartTagToken(ElementData::new(
+                "div".to_string(),
+                from_vec(vec![
+                    ("className".to_string(), "table".to_string()),
+                    ("id".to_string(), "names".to_string()),
+                ]),
+            )),
+            Token::StartTagToken(ElementData::new(
+                "a".to_string(),
+                from_vec(vec![(
+                    "href".to_string(),
+                    "https://example.com".to_string(),
+                )]),
+            )),
+        ];
+        for expect in expects {
+            let token = lexer.next_token();
+            assert_eq!(token, expect);
+        }
     }
 
     #[test]
