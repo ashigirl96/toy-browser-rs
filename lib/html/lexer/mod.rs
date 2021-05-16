@@ -33,17 +33,15 @@ impl<'a> Lexer<'a> {
         match self.input.peek() {
             Some(ch) if ch.is_alphanumeric() => {
                 let tag_name = self.expect_tag_name();
-                let attributes = match self.input.peek() {
-                    Some('>') => {
-                        self.input.next();
-                        Attributes::new()
+                let attributes = self.expect_attributes();
+                match self.input.next() {
+                    Some('>') => Token::StartTagToken(ElementData::new(tag_name, attributes)),
+                    Some('/') => {
+                        self.skip_next_ch(&'>');
+                        Token::SelfClosingTagToken(ElementData::new(tag_name, attributes))
                     }
-                    Some('a'..='z' | 'A'..='Z') => self.expect_attributes(),
-                    _ => {
-                        panic!("ERROR");
-                    }
-                };
-                Token::StartTagToken(ElementData::new(tag_name, attributes))
+                    _ => panic!("cannot parse consume_start_tag"),
+                }
             }
             Some('>') => {
                 self.input.next(); // skip `>`
@@ -84,10 +82,7 @@ impl<'a> Lexer<'a> {
         let mut attributes = Attributes::new();
         loop {
             let (key, value) = match self.input.peek() {
-                Some('>') => {
-                    self.input.next();
-                    break;
-                }
+                Some('>' | '/') => break,
                 Some(_) => self.expect_attribute(),
                 None => panic!("Cannot parse token in expect_attributes"),
             };
@@ -164,7 +159,10 @@ mod tests {
     fn test_consume_start_tag() {
         let input = r#"
 <>
-<div  className="table"  id="names">
+<div  
+    className="table"  
+    id="names"
+>
 <a href="https://example.com">
 "#;
         let mut lexer = Lexer::new(input);
@@ -179,6 +177,38 @@ mod tests {
                 ]),
             )),
             Token::StartTagToken(ElementData::new(
+                "a".to_string(),
+                from_vec(vec![(
+                    "href".to_string(),
+                    "https://example.com".to_string(),
+                )]),
+            )),
+        ];
+        for expect in expects {
+            let token = lexer.next_token();
+            assert_eq!(token, expect);
+        }
+    }
+
+    #[test]
+    fn test_consume_self_closing_tag() {
+        let input = r#"
+<div  
+    className="table"  
+    id="names" 
+/>
+<a href="https://example.com" />
+"#;
+        let mut lexer = Lexer::new(input);
+        let expects = vec![
+            Token::SelfClosingTagToken(ElementData::new(
+                "div".to_string(),
+                from_vec(vec![
+                    ("className".to_string(), "table".to_string()),
+                    ("id".to_string(), "names".to_string()),
+                ]),
+            )),
+            Token::SelfClosingTagToken(ElementData::new(
                 "a".to_string(),
                 from_vec(vec![(
                     "href".to_string(),
