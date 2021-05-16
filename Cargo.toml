@@ -8,3 +8,12 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.40"
+
+[dev-dependencies.cargo-husky]
+version = "1.5.0"
+default-features = false  # invalidate default features
+features = ["precommit-hook", "run-cargo-test", "run-cargo-clippy"]
+
+[lib]
+name = "browser_lib"
+path = "lib/browser.rs"
