@@ -20,7 +20,16 @@ pub struct ElementData {
     attributes: Attributes,
 }
 
-type Attributes = BTreeMap<String, String>;
+impl ElementData {
+    pub fn new(tag_name: String, attributes: Attributes) -> Self {
+        Self {
+            tag_name,
+            attributes,
+        }
+    }
+}
+
+pub type Attributes = BTreeMap<String, String>;
 
 impl fmt::Debug for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
