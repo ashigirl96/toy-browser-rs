@@ -66,14 +66,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn expect_tag_name(&mut self) -> String {
-        let mut tag_name = String::new();
-        while let Some(ch) = &self.input.next() {
-            if ch.is_alphabetic() {
-                tag_name.push_str(&&ch.to_string());
-            } else {
-                break;
-            }
-        }
+        let tag_name = self.consume(&|x| x.is_alphanumeric());
         self.skip_whitespace();
         if tag_name.is_empty() {
             return String::from("div");
@@ -151,6 +144,48 @@ mod tests {
 
     fn from_vec(attributes: Vec<(String, String)>) -> Attributes {
         attributes.iter().cloned().collect()
+    }
+
+    #[test]
+    fn test_next_token() {
+        let input = r#"
+<html>
+    <meta content="html" />
+    <div
+        className="table"
+        id="names">
+        <p>Hello</p>
+        <p>World</p>
+    </div>
+</html>
+"#;
+        let mut lexer = Lexer::new(input);
+        let expects = vec![
+            Token::StartTagToken(ElementData::new("html".to_string(), from_vec(vec![]))),
+            Token::SelfClosingTagToken(ElementData::new(
+                "meta".to_string(),
+                from_vec(vec![("content".to_string(), "html".to_string())]),
+            )),
+            Token::StartTagToken(ElementData::new(
+                "div".to_string(),
+                from_vec(vec![
+                    ("className".to_string(), "table".to_string()),
+                    ("id".to_string(), "names".to_string()),
+                ]),
+            )),
+            Token::StartTagToken(ElementData::new("p".to_string(), from_vec(vec![]))),
+            Token::TextToken("Hello".to_string()),
+            Token::EndTagToken("p".to_string()),
+            Token::StartTagToken(ElementData::new("p".to_string(), from_vec(vec![]))),
+            Token::TextToken("World".to_string()),
+            Token::EndTagToken("p".to_string()),
+            Token::EndTagToken("div".to_string()),
+            Token::EndTagToken("html".to_string()),
+        ];
+        for expect in expects {
+            let token = lexer.next_token();
+            assert_eq!(token, expect);
+        }
     }
 
     #[test]
