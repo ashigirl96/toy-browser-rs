@@ -92,26 +92,34 @@ impl<'a> Lexer<'a> {
         // e.g. class="table"
         let key = self.consume(&|x| x.is_ascii_alphabetic());
         self.skip_next_ch(&'=');
-        self.skip_next_ch(&'"');
-        let value = self.consume(&|x| x != &'"');
-        self.skip_next_ch(&'"');
+        let literal = match self.input.peek() {
+            Some('"') => '"',
+            Some('\'') => '\'',
+            _ => panic!("cannot found attribute string"),
+        };
+        self.skip_next_ch(&literal);
+        let value = self.consume(&|x| x != &literal);
+        self.skip_next_ch(&literal);
         self.skip_whitespace();
         (key, value)
     }
 
     fn expect_comment(&mut self) -> String {
-        self.skip_next_ch(&'-');
-        self.skip_next_ch(&'-');
+        self.skip_next_str(&"--");
         let comment = self.consume(&|x| x != &'-');
-        self.skip_next_ch(&'-');
-        self.skip_next_ch(&'-');
-        self.skip_next_ch(&'>');
+        self.skip_next_str(&"-->");
         comment
     }
 
     fn consume_text(&mut self) -> Token {
         let text = self.consume(&|ch| ch.is_alphanumeric() || ch.is_whitespace());
         Token::TextToken(text)
+    }
+
+    fn skip_next_str(&mut self, chs: &str) {
+        for ch in chs.chars() {
+            self.skip_next_ch(&ch);
+        }
     }
 
     fn skip_next_ch(&mut self, ch: &char) {
@@ -152,10 +160,11 @@ mod tests {
 <html>
     <meta content="html" />
     <div
-        className="table"
+        className='table'
         id="names">
         <p>Hello</p>
         <p>World</p>
+        <!--TODO: implement table-->
     </div>
 </html>
 "#;
@@ -179,6 +188,7 @@ mod tests {
             Token::StartTagToken(ElementData::new("p".to_string(), from_vec(vec![]))),
             Token::TextToken("World".to_string()),
             Token::EndTagToken("p".to_string()),
+            Token::CommentToken("TODO: implement table".to_string()),
             Token::EndTagToken("div".to_string()),
             Token::EndTagToken("html".to_string()),
         ];
