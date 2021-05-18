@@ -14,10 +14,10 @@ pub enum Token {
     Illegal,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ElementData {
-    tag_name: String,
-    attributes: Attributes,
+    pub tag_name: String,
+    pub attributes: Attributes,
 }
 
 impl ElementData {

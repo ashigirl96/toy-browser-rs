@@ -2,7 +2,7 @@ use crate::html::lexer::token::{Attributes, ElementData, Token};
 use std::iter::Peekable;
 use std::str::Chars;
 
-mod token;
+pub mod token;
 
 pub struct Lexer<'a> {
     input: Peekable<Chars<'a>>,
@@ -13,6 +13,19 @@ impl<'a> Lexer<'a> {
         Self {
             input: input.chars().peekable(),
         }
+    }
+
+    pub fn tokens(&mut self) -> Vec<Token> {
+        let mut tokens = vec![];
+        loop {
+            let token = self.next_token();
+            if token == Token::Eof {
+                tokens.push(Token::Eof);
+                break;
+            }
+            tokens.push(token);
+        }
+        tokens
     }
 
     pub fn next_token(&mut self) -> Token {
