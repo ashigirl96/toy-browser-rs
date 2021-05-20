@@ -396,76 +396,69 @@ div > .table {
 
     #[test]
     fn test_parse_declaration() {
-        let mut parser = StyleSheetParser::new("margin: auto ;");
-        assert_eq!(
-            parser.parse_declaration(),
-            Declaration::new("margin".to_string(), Value::Other("auto".to_string()))
-        );
-        let mut parser = StyleSheetParser::new("padding : 10.5 px;");
-        assert_eq!(
-            parser.parse_declaration(),
-            Declaration::new("padding".to_string(), Value::Length(10.5, Unit::Px))
-        );
-        let mut parser = StyleSheetParser::new("color: #aa11ff22;");
-        assert_eq!(
-            parser.parse_declaration(),
-            Declaration::new(
-                "color".to_string(),
-                Value::Color(Color::new(0xaa, 0x11, 0xff, 0x22))
-            )
-        );
-        let mut parser = StyleSheetParser::new("color: #aa11ff ;");
-        assert_eq!(
-            parser.parse_declaration(),
-            Declaration::new(
-                "color".to_string(),
-                Value::Color(Color::new(0xaa, 0x11, 0xff, 0x00))
-            )
-        );
+        let tests = vec![
+            (
+                new("margin: auto ;"),
+                Declaration::new("margin".to_string(), Value::Other("auto".to_string())),
+            ),
+            (
+                new("padding : 10.5 px;"),
+                Declaration::new("padding".to_string(), Value::Length(10.5, Unit::Px)),
+            ),
+            (
+                new("color: #aa11ff22;"),
+                Declaration::new(
+                    "color".to_string(),
+                    Value::Color(Color::new(0xaa, 0x11, 0xff, 0x22)),
+                ),
+            ),
+            (
+                new("color: #aa11ff ;"),
+                Declaration::new(
+                    "color".to_string(),
+                    Value::Color(Color::new(0xaa, 0x11, 0xff, 0x00)),
+                ),
+            ),
+        ];
+        for (mut parser, expect) in tests {
+            assert_eq!(parser.parse_declaration(), expect)
+        }
     }
 
     #[test]
     fn test_consume_identifier() {
-        let mut parser = StyleSheetParser::new("h_1, h_2");
-        assert_eq!(parser.consume_identifier(), "h_1".to_string());
+        assert_eq!(new("h_1, h_2").consume_identifier(), "h_1".to_string());
     }
 
     #[test]
     fn test_consume_hex() {
-        let mut parser = StyleSheetParser::new("ffaa");
-        assert_eq!(parser.consume_hex(2), 0xff);
+        assert_eq!(new("ffaa").consume_hex(2), 0xff);
     }
 
     #[test]
     fn test_consume_number() {
-        let input = "10";
-        let mut parser = StyleSheetParser::new(input);
-        assert_eq!(parser.consume_number(), 10 as f32);
+        assert_eq!(new("10.2").consume_number(), 10.2 as f32);
     }
 
     #[test]
     fn test_consume_for() {
-        let mut parser = StyleSheetParser::new("h1h2");
         assert_eq!(
-            parser.consume_for(&|ch| ch.is_ascii_alphanumeric(), 2),
+            new("h1h2").consume_for(&|ch| ch.is_ascii_alphanumeric(), 2),
             "h1".to_string(),
         );
     }
 
     #[test]
     fn test_consume() {
-        let input = "h1, h2";
-        let mut parser = StyleSheetParser::new(input);
         assert_eq!(
-            parser.consume(&|ch| ch.is_ascii_alphanumeric()),
+            new("h1, h2").consume(&|ch| ch.is_ascii_alphanumeric()),
             "h1".to_string(),
         );
     }
 
     #[test]
     fn test_skip_whitespace() {
-        let input = "   x ";
-        let mut parser = StyleSheetParser::new(input);
+        let mut parser = new("  x ");
         parser.skip_whitespace();
         assert_eq!(parser.input.next().unwrap(), 'x');
     }

@@ -1,5 +1,5 @@
 [package]
-name = "rust-browser"
+name = "wabi-rs"
 version = "0.1.0"
 authors = ["ashigirl96 <reon@mma.cs.tsukuba.ac.jp>"]
 edition = "2018"
