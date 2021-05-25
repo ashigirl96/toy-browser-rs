@@ -1,3 +1,4 @@
+use crate::html::lexer::token::ElementData;
 use std::fmt;
 use std::fmt::Debug;
 
@@ -25,6 +26,31 @@ pub enum Selector {
     Id(Option<Box<Selector>>, String),      // #note, div#note, etc.
     Child(Box<Selector>, Box<Selector>),    // article > p
     Adjacent(Box<Selector>, Box<Selector>), // h1 + p
+}
+
+impl Selector {
+    pub fn matches(&self, element: &ElementData) -> bool {
+        match &self {
+            Selector::Tag(tag_name) => tag_name == &element.tag_name,
+            Selector::Class(Option::Some(box selector), class_name) => {
+                let element_class_name = &element.get_classes().unwrap_or_default();
+                selector.matches(element) && class_name == element_class_name
+            }
+            Selector::Class(None, class_name) => {
+                let element_class_name = &element.get_classes().unwrap_or_default();
+                class_name == element_class_name
+            }
+            Selector::Id(Option::Some(box selector), id) => {
+                let element_id = &element.get_id().unwrap_or_default();
+                selector.matches(element) && id == element_id
+            }
+            Selector::Id(None, id) => {
+                let element_id = &element.get_id().unwrap_or_default();
+                id == element_id
+            }
+            _ => false,
+        }
+    }
 }
 
 // margin: 10px
@@ -183,6 +209,63 @@ impl fmt::Debug for Color {
 #[cfg(test)]
 mod tests {
     use crate::css::structure::Selector;
+    use crate::html::lexer::token::{Attributes, ElementData};
+
+    fn generate_element(tag_name: &str, attrs: Vec<(&str, &str)>) -> ElementData {
+        let mut attributes = Attributes::new();
+        for (key, value) in attrs {
+            attributes.insert(key.to_string(), value.to_string());
+        }
+        ElementData::new(tag_name.to_string(), attributes)
+    }
+
+    #[test]
+    fn test_selector_matches_class_name() {
+        let div_selector = Selector::Class(
+            Some(Box::new(Selector::Tag("div".to_string()))),
+            "box".to_string(),
+        ); // div.box
+
+        let element = generate_element("div", vec![("class", "box")]);
+        assert!(div_selector.matches(&element));
+
+        let element = generate_element("div", vec![("class", "table")]);
+        assert!(!div_selector.matches(&element));
+    }
+
+    #[test]
+    fn test_none_selector_matches_class_name() {
+        let none_selector = Selector::Class(None, "box".to_string()); // .box
+        let element = generate_element("div", vec![("class", "box")]);
+        assert!(none_selector.matches(&element));
+
+        let element = generate_element("div", vec![("class", "table")]);
+        assert!(!none_selector.matches(&element));
+    }
+
+    #[test]
+    fn test_selector_matches_id() {
+        let div_selector = Selector::Id(
+            Some(Box::new(Selector::Tag("div".to_string()))),
+            "box".to_string(),
+        ); // div#box
+
+        let element = generate_element("div", vec![("id", "box")]);
+        assert!(div_selector.matches(&element));
+
+        let element = generate_element("div", vec![("id", "table")]);
+        assert!(!div_selector.matches(&element));
+    }
+
+    #[test]
+    fn test_none_selector_matches_id() {
+        let none_selector = Selector::Id(None, "box".to_string()); // #box
+        let element = generate_element("div", vec![("id", "box")]);
+        assert!(none_selector.matches(&element));
+
+        let element = generate_element("div", vec![("id", "table")]);
+        assert!(!none_selector.matches(&element));
+    }
 
     #[test]
     fn test_debug_selector() {
