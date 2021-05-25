@@ -27,6 +27,23 @@ impl ElementData {
             attributes,
         }
     }
+
+    pub fn get_id(&self) -> Option<String> {
+        self.get_value_by_name("id")
+    }
+
+    pub fn get_classes(&self) -> Option<String> {
+        self.get_value_by_name("class")
+    }
+
+    fn get_value_by_name(&self, key: &str) -> Option<String> {
+        for (_key, value) in &self.attributes {
+            if _key == key {
+                return Some(value.clone());
+            }
+        }
+        None
+    }
 }
 
 pub type Attributes = BTreeMap<String, String>;
@@ -66,6 +83,25 @@ impl Token {
 #[cfg(test)]
 mod tests {
     use crate::html::lexer::token::{Attributes, ElementData, Token};
+
+    fn generate_element(tag_name: &str, attrs: Vec<(&str, &str)>) -> ElementData {
+        let mut attributes = Attributes::new();
+        for (key, value) in attrs {
+            attributes.insert(key.to_string(), value.to_string());
+        }
+        ElementData::new(tag_name.to_string(), attributes)
+    }
+
+    #[test]
+    fn test_get_id() {
+        let element = generate_element("div", vec![("id", "names"), ("class", "table")]);
+        if let Some(id) = element.get_id() {
+            assert_eq!(id, "names".to_string())
+        }
+        if let Some(class_name) = element.get_classes() {
+            assert_eq!(class_name, "table".to_string())
+        }
+    }
 
     #[test]
     fn test_text_token() {

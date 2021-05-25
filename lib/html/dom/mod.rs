@@ -13,8 +13,8 @@ pub enum NodeType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
-    node_type: NodeType,
-    children: Vec<Node>,
+    pub node_type: NodeType,
+    pub children: Vec<Node>,
 }
 
 impl Node {
