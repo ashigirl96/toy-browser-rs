@@ -1,10 +1,31 @@
 use crate::html::lexer::token::ElementData;
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Debug;
+
+pub type PropertyMap<'a> = HashMap<&'a str, &'a Value>;
 
 #[derive(Default, PartialEq)]
 pub struct StyleSheet {
     pub rules: Vec<Rule>,
+}
+
+impl StyleSheet {
+    pub fn get_styles(&self, element: &ElementData) -> PropertyMap {
+        let mut styles = PropertyMap::new();
+
+        for rule in &self.rules {
+            for selector in &rule.selectors {
+                if selector.matches(element) {
+                    for declaration in &rule.declarations {
+                        styles.insert(&declaration.property, &declaration.value);
+                    }
+                    break;
+                }
+            }
+        }
+        styles
+    }
 }
 
 // h1, h2, div.note, #answer { margin: auto; color: #cc0000 }
@@ -222,7 +243,7 @@ mod tests {
     #[test]
     fn test_selector_matches_class_name() {
         let div_selector = Selector::Class(
-            Some(Box::new(Selector::Tag("div".to_string()))),
+            Some(box (Selector::Tag("div".to_string()))),
             "box".to_string(),
         ); // div.box
 
@@ -246,7 +267,7 @@ mod tests {
     #[test]
     fn test_selector_matches_id() {
         let div_selector = Selector::Id(
-            Some(Box::new(Selector::Tag("div".to_string()))),
+            Some(box (Selector::Tag("div".to_string()))),
             "box".to_string(),
         ); // div#box
 
@@ -274,7 +295,7 @@ mod tests {
             (Selector::Class(None, "box".to_string()), ".box".to_string()),
             (
                 Selector::Class(
-                    Some(Box::new(Selector::Tag("div".to_string()))),
+                    Some(box (Selector::Tag("div".to_string()))),
                     "box".to_string(),
                 ),
                 "div.box".to_string(),
@@ -282,22 +303,22 @@ mod tests {
             (Selector::Id(None, "box".to_string()), "#box".to_string()),
             (
                 Selector::Id(
-                    Some(Box::new(Selector::Tag("div".to_string()))),
+                    Some(box (Selector::Tag("div".to_string()))),
                     "box".to_string(),
                 ),
                 "div#box".to_string(),
             ),
             (
                 Selector::Child(
-                    Box::new(Selector::Tag("article".to_string())),
-                    Box::new(Selector::Tag("p".to_string())),
+                    box (Selector::Tag("article".to_string())),
+                    box (Selector::Tag("p".to_string())),
                 ),
                 "article > p".to_string(),
             ),
             (
                 Selector::Adjacent(
-                    Box::new(Selector::Tag("h1".to_string())),
-                    Box::new(Selector::Tag("p".to_string())),
+                    box (Selector::Tag("h1".to_string())),
+                    box (Selector::Tag("p".to_string())),
                 ),
                 "h1 + p".to_string(),
             ),

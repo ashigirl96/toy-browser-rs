@@ -78,7 +78,7 @@ impl<'a> StyleSheetParser<'a> {
                 self.input.next();
                 let class = self.consume_identifier();
                 let left = match left {
-                    Some(selector) => Selector::Class(Some(Box::new(selector)), class),
+                    Some(selector) => Selector::Class(Some(box (selector)), class),
                     None => Selector::Class(None, class),
                 };
                 self.parse_sibling_selector(Some(left))
@@ -87,7 +87,7 @@ impl<'a> StyleSheetParser<'a> {
                 self.input.next();
                 let id = self.consume_identifier();
                 let left = match left {
-                    Some(selector) => Selector::Id(Some(Box::new(selector)), id),
+                    Some(selector) => Selector::Id(Some(box (selector)), id),
                     None => Selector::Id(None, id),
                 };
                 self.parse_sibling_selector(Some(left))
@@ -105,7 +105,7 @@ impl<'a> StyleSheetParser<'a> {
                 let right = self.parse_selector_unit();
                 match left {
                     Some(selector) => {
-                        let left = Selector::Child(Box::new(selector), Box::new(right));
+                        let left = Selector::Child(box (selector), box (right));
                         self.parse_sibling_selector(Some(left))
                     }
                     None => panic!("Cannot parse right selector"),
@@ -116,7 +116,7 @@ impl<'a> StyleSheetParser<'a> {
                 let right = self.parse_selector_unit();
                 match left {
                     Some(selector) => {
-                        let left = Selector::Adjacent(Box::new(selector), Box::new(right));
+                        let left = Selector::Adjacent(box (selector), box (right));
                         self.parse_sibling_selector(Some(left))
                     }
                     None => panic!("Cannot parse right selector"),
@@ -254,8 +254,8 @@ div > .table {
 "#,
         );
         let selectors = vec![Selector::Child(
-            Box::new(Selector::Tag("div".to_string())),
-            Box::new(Selector::Class(None, "table".to_string())),
+            box (Selector::Tag("div".to_string())),
+            box (Selector::Class(None, "table".to_string())),
         )];
         let declarations = vec![
             Declaration::new("margin".to_string(), Value::Other("auto".to_string())),
@@ -292,8 +292,8 @@ div > .table {
 }"#,
         );
         let selectors = vec![Selector::Child(
-            Box::new(Selector::Tag("div".to_string())),
-            Box::new(Selector::Class(None, "table".to_string())),
+            box (Selector::Tag("div".to_string())),
+            box (Selector::Class(None, "table".to_string())),
         )];
         let declarations = vec![
             Declaration::new("margin".to_string(), Value::Other("auto".to_string())),
@@ -315,7 +315,7 @@ div > .table {
             (
                 new("p.box"),
                 Selector::Class(
-                    Some(Box::new(Selector::Tag("p".to_string()))),
+                    Some(box (Selector::Tag("p".to_string()))),
                     "box".to_string(),
                 ),
             ),
@@ -323,67 +323,67 @@ div > .table {
             (
                 new("p#box"),
                 Selector::Id(
-                    Some(Box::new(Selector::Tag("p".to_string()))),
+                    Some(box (Selector::Tag("p".to_string()))),
                     "box".to_string(),
                 ),
             ),
             (
                 new("head > div"),
                 Selector::Child(
-                    Box::new(Selector::Tag("head".to_string())),
-                    Box::new(Selector::Tag("div".to_string())),
+                    box (Selector::Tag("head".to_string())),
+                    box (Selector::Tag("div".to_string())),
                 ),
             ),
             (
                 new("head > div > p"),
                 Selector::Child(
-                    Box::new(Selector::Tag("head".to_string())),
-                    Box::new(Selector::Child(
-                        Box::new(Selector::Tag("div".to_string())),
-                        Box::new(Selector::Tag("p".to_string())),
+                    box (Selector::Tag("head".to_string())),
+                    box (Selector::Child(
+                        box (Selector::Tag("div".to_string())),
+                        box (Selector::Tag("p".to_string())),
                     )),
                 ),
             ),
             (
                 new("head + div"),
                 Selector::Adjacent(
-                    Box::new(Selector::Tag("head".to_string())),
-                    Box::new(Selector::Tag("div".to_string())),
+                    box (Selector::Tag("head".to_string())),
+                    box (Selector::Tag("div".to_string())),
                 ),
             ),
             (
                 new("head + div + p"),
                 Selector::Adjacent(
-                    Box::new(Selector::Tag("head".to_string())),
-                    Box::new(Selector::Adjacent(
-                        Box::new(Selector::Tag("div".to_string())),
-                        Box::new(Selector::Tag("p".to_string())),
+                    box (Selector::Tag("head".to_string())),
+                    box (Selector::Adjacent(
+                        box (Selector::Tag("div".to_string())),
+                        box (Selector::Tag("p".to_string())),
                     )),
                 ),
             ),
             (
                 new(".table > p"),
                 Selector::Child(
-                    Box::new(Selector::Class(None, "table".to_string())),
-                    Box::new(Selector::Tag("p".to_string())),
+                    box (Selector::Class(None, "table".to_string())),
+                    box (Selector::Tag("p".to_string())),
                 ),
             ),
             (
                 new(".table > #box"),
                 Selector::Child(
-                    Box::new(Selector::Class(None, "table".to_string())),
-                    Box::new(Selector::Id(None, "box".to_string())),
+                    box (Selector::Class(None, "table".to_string())),
+                    box (Selector::Id(None, "box".to_string())),
                 ),
             ),
             (
                 new("div.table > p#box"),
                 Selector::Child(
-                    Box::new(Selector::Class(
-                        Some(Box::new(Selector::Tag("div".to_string()))),
+                    box (Selector::Class(
+                        Some(box (Selector::Tag("div".to_string()))),
                         "table".to_string(),
                     )),
-                    Box::new(Selector::Id(
-                        Some(Box::new(Selector::Tag("p".to_string()))),
+                    box (Selector::Id(
+                        Some(box (Selector::Tag("p".to_string()))),
                         "box".to_string(),
                     )),
                 ),
