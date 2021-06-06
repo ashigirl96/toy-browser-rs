@@ -1,5 +1,6 @@
 use crate::html::lexer::token::{ElementData, Token};
 use anyhow::Result;
+use std::fmt;
 use std::iter::Peekable;
 use std::slice::Iter;
 
@@ -11,7 +12,7 @@ pub enum NodeType {
     // Document,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Node {
     pub node_type: NodeType,
     pub children: Vec<Node>,
@@ -24,13 +25,41 @@ impl Node {
             children: vec![],
         }
     }
+
+    fn to_string(&self, indent_size: i32) -> String {
+        let indent = (0..indent_size).map(|_| " ").collect::<String>();
+        let mut output = String::new();
+
+        match self.node_type {
+            NodeType::Element(ref v) => output.push_str(&format!("{}<{:?}>", indent, v)),
+            NodeType::Text(ref v) => output.push_str(&format!("{}{}", indent, v)),
+            NodeType::Comment(ref v) => output.push_str(&format!("{}<!--{}-->", indent, v)),
+        };
+
+        for child in self.children.iter() {
+            output.push('\n');
+            output.push_str(&child.to_string(indent_size + 2));
+            output.push('\n');
+        }
+
+        if let NodeType::Element(ref v) = self.node_type {
+            output.push_str(&format!("{}<{:?}/>", indent, v));
+        }
+        output
+    }
+}
+
+impl fmt::Debug for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string(2))
+    }
 }
 
 type Dom = Vec<Node>;
 
 #[derive(Debug)]
 pub struct DOMParser<'a> {
-    tokens: Peekable<Iter<'a, Token>>,
+    pub tokens: Peekable<Iter<'a, Token>>,
 }
 
 impl<'a> DOMParser<'a> {
@@ -131,7 +160,6 @@ mod tests {
         let tokens = Lexer::new(input).tokens();
         let mut parser = DOMParser::new(&tokens);
         let dom = parser.parse()?;
-        dbg!(&dom);
         let expect = Node {
             node_type: NodeType::Element(ElementData::new("html".to_string(), Attributes::new())),
             children: vec![
@@ -170,7 +198,9 @@ mod tests {
                 },
             ],
         };
+        println!("{}", expect.to_string(0));
         assert_eq!(dom, vec![expect]);
+
         Ok(())
     }
 }

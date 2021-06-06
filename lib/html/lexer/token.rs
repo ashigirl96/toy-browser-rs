@@ -14,10 +14,20 @@ pub enum Token {
     Illegal,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct ElementData {
     pub tag_name: String,
     pub attributes: Attributes,
+}
+
+impl fmt::Debug for ElementData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut output = self.tag_name.to_string();
+        for (key, value) in self.attributes.iter() {
+            output.push_str(&format!(" {}={}", key, value))
+        }
+        write!(f, "{}", output)
+    }
 }
 
 impl ElementData {

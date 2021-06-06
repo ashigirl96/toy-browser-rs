@@ -232,7 +232,10 @@ mod tests {
     use crate::css::structure::Selector;
     use crate::html::lexer::token::{Attributes, ElementData};
 
-    fn generate_element(tag_name: &str, attrs: Vec<(&str, &str)>) -> ElementData {
+    fn generate_element(
+        tag_name: &'static str,
+        attrs: Vec<(&'static str, &'static str)>,
+    ) -> ElementData {
         let mut attributes = Attributes::new();
         for (key, value) in attrs {
             attributes.insert(key.to_string(), value.to_string());

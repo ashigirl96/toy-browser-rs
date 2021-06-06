@@ -151,7 +151,7 @@ impl<'a> StyleSheetParser<'a> {
                 };
                 Value::Length(length, unit)
             }
-            Some('a'..='z' | 'A'..='Z') => {
+            Some('a'..='z' | 'A'..='Z' | '-') => {
                 let ident = self.consume_identifier();
                 Value::Other(ident)
             }
@@ -163,7 +163,7 @@ impl<'a> StyleSheetParser<'a> {
     }
 
     fn consume_identifier(&mut self) -> String {
-        self.consume(&|ch| matches!(ch, '0'..='9' | 'a'..='z' | 'A'..='Z' | '_'))
+        self.consume(&|ch| matches!(ch, '0'..='9' | 'a'..='z' | 'A'..='Z' | '_' | '-'))
     }
 
     fn consume_number(&mut self) -> f32 {
