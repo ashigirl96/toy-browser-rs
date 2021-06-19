@@ -1,4 +1,4 @@
-use crate::css::structure::{Color, Declaration, Rule, Selector, StyleSheet, Unit, Value};
+use crate::css::prelude::{Color, Declaration, Rule, Selector, StyleSheet, Unit, Value};
 use std::iter::Peekable;
 use std::option::Option::Some;
 use std::str::Chars;
@@ -231,7 +231,7 @@ impl<'a> StyleSheetParser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::css::parser::StyleSheetParser;
-    use crate::css::structure::{Color, Declaration, Rule, Selector, StyleSheet, Unit, Value};
+    use crate::css::prelude::{Color, Declaration, Rule, Selector, StyleSheet, Unit, Value};
 
     fn new(input: &str) -> StyleSheetParser {
         StyleSheetParser::new(input)

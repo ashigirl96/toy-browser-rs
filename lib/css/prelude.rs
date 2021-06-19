@@ -14,10 +14,10 @@ impl StyleSheet {
     pub fn get_styles(&self, element: &ElementData) -> PropertyMap {
         let mut styles = PropertyMap::new();
 
-        for rule in &self.rules {
-            for selector in &rule.selectors {
+        for rule in self.rules.iter() {
+            for selector in rule.selectors.iter() {
                 if selector.matches(element) {
-                    for declaration in &rule.declarations {
+                    for declaration in rule.declarations.iter() {
                         styles.insert(&declaration.property, &declaration.value);
                     }
                     break;
@@ -229,7 +229,7 @@ impl fmt::Debug for Color {
 
 #[cfg(test)]
 mod tests {
-    use crate::css::structure::Selector;
+    use crate::css::prelude::Selector;
     use crate::html::lexer::token::{Attributes, ElementData};
 
     fn generate_element(

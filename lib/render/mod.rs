@@ -1,4 +1,4 @@
-use crate::css::structure::{PropertyMap, StyleSheet, Value};
+use crate::css::prelude::{PropertyMap, StyleSheet, Value};
 use crate::html::dom::{Node, NodeType};
 use std::fmt;
 
@@ -21,9 +21,9 @@ impl<'a> RenderNode<'a> {
     pub fn new(node: &'a Node, stylesheet: &'a StyleSheet) -> Self {
         let mut children = Vec::new();
 
-        for child in &node.children {
+        for child in node.children.iter() {
             if let NodeType::Element(_) = child.node_type {
-                children.push(Self::new(&child, stylesheet))
+                children.push(Self::new(child, stylesheet))
             }
         }
 
@@ -46,7 +46,7 @@ impl<'a> RenderNode<'a> {
     pub fn get_display(&self) -> Display {
         if let Some(s) = self.value("display") {
             return match s {
-                Value::Other(ref v) => match v.as_ref() {
+                Value::Other(v) => match v.as_ref() {
                     "block" => Display::Block,
                     "none" => Display::None,
                     "inline-block" => Display::InlineBlock,
