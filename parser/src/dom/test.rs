@@ -68,18 +68,6 @@ Mr. Lawrence.
     }
 
     #[test]
-    fn test_parse_element_attributes() {
-        use crate::dom::NodeKey::*;
-        let tests = vec![(
-            r#"id="name""#,
-            ElementAttributes::from_iter([(Id, "name".to_string())]),
-        )];
-        for (input, expected) in tests {
-            assert_eq!(new(input).parse_element_attributes(), expected);
-        }
-    }
-
-    #[test]
     fn test_node_key_from() {
         use crate::dom::NodeKey::*;
         let tests = vec![
