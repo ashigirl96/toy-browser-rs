@@ -4,7 +4,6 @@ mod tests {
     use crate::prelude::ElementTagName::{Article, Div, Head, H1, P};
     use crate::prelude::NodeKey::{Class, Id};
     use crate::prelude::*;
-    use std::collections::HashMap;
     use std::iter::FromIterator;
 
     fn generate_element(tag_name: ElementTagName, attrs: Vec<(NodeKey, &'static str)>) -> Element {
