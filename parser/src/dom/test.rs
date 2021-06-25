@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::prelude::{ElementAttributes, ElementTagName, NodeKey};
+    use crate::prelude::ElementTagName::{Div, P};
+    use crate::prelude::Node::{Comment, Text};
+    use crate::prelude::NodeKey::{Class, Id, Other};
+    use crate::prelude::{ElementTagName, NodeKey};
     use crate::DocumentObjectParser;
     use std::iter::FromIterator;
 
@@ -10,6 +13,7 @@ mod tests {
 
     #[test]
     fn test_parse_node() {
+        use crate::prelude::*;
         let input = r#"
 <div class = "name"   id =  "note"  >
     Hello
@@ -17,7 +21,33 @@ mod tests {
     <p onClick="console.log(0)">World</p>
     <!-- TODO: Implement Here -->
 </div>"#;
-        dbg!(&new(input).parse_node());
+        assert_eq!(
+            new(input).parse_node(),
+            Node::Element(Element {
+                tag_name: Div,
+                attributes: ElementAttributes::from_iter([
+                    (Id, "note".to_string()),
+                    (Class, "name".to_string())
+                ]),
+                children: vec![
+                    Text("Hello".to_string(),),
+                    Node::Element(Element {
+                        tag_name: Div,
+                        attributes: ElementAttributes::from_iter([(Id, "space".to_string())]),
+                        children: vec![]
+                    }),
+                    Node::Element(Element {
+                        tag_name: P,
+                        attributes: ElementAttributes::from_iter([(
+                            Other("onClick".to_string()),
+                            "console.log(0)".to_string()
+                        )]),
+                        children: vec![Text("World".to_string(),),],
+                    },),
+                    Comment("TODO: Implement Here ".to_string(),),
+                ],
+            },),
+        );
     }
 
     #[test]
