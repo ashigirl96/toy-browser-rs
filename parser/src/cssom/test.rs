@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::prelude::DeclarationProperty::{Display, Margin, Padding};
+    use crate::prelude::DeclarationProperty::{Margin, Padding};
     use crate::prelude::ElementTagName::{Article, Div, Head, H1, P};
     use crate::prelude::NodeKey::{Class, Id};
+    use crate::prelude::Unit::{Em, Px};
     use crate::prelude::*;
     use std::iter::FromIterator;
 
@@ -125,17 +126,23 @@ div > .table {
             box (Selector::Class(None, "table".to_string())),
         )];
         let declarations = vec![
-            Declaration::new(Margin, Value::Other("auto".to_string())),
-            Declaration::new(Padding, Value::Length(10.5, Unit::Px)),
+            Declaration::new(Margin, DeclarationValue::Length(vec![Length::Auto])),
+            Declaration::new(
+                Padding,
+                DeclarationValue::Length(vec![Length::Actual(10.5, Unit::Px)]),
+            ),
             Declaration::new(
                 DeclarationProperty::Color,
-                Value::Color(Color::new(0xaa, 0x11, 0xff, 0x22)),
+                DeclarationValue::Color(Color::new(0xaa, 0x11, 0xff, 0x22)),
             ),
         ];
         let rule1 = Rule::new(selectors, declarations);
 
         let selectors = vec![Selector::Id(None, "answer".to_string()), Selector::Tag(H1)];
-        let declarations = vec![Declaration::new(Display, Value::Other("none".to_string()))];
+        let declarations = vec![Declaration::new(
+            DeclarationProperty::Display,
+            DeclarationValue::Display(Display::None),
+        )];
         let rule2 = Rule::new(selectors, declarations);
 
         let expect = StyleSheet::new(vec![rule1, rule2]);
@@ -150,6 +157,7 @@ div > .table {
     margin: auto ;
     padding : 10.5 px;
     color: #aa11ff22;
+    display: flex;
 }"#,
         );
         let selectors = vec![Selector::Child(
@@ -157,11 +165,18 @@ div > .table {
             box (Selector::Class(None, "table".to_string())),
         )];
         let declarations = vec![
-            Declaration::new(Margin, Value::Other("auto".to_string())),
-            Declaration::new(Padding, Value::Length(10.5, Unit::Px)),
+            Declaration::new(Margin, DeclarationValue::Length(vec![Length::Auto])),
+            Declaration::new(
+                Padding,
+                DeclarationValue::Length(vec![Length::Actual(10.5, Unit::Px)]),
+            ),
             Declaration::new(
                 DeclarationProperty::Color,
-                Value::Color(Color::new(0xaa, 0x11, 0xff, 0x22)),
+                DeclarationValue::Color(Color::new(0xaa, 0x11, 0xff, 0x22)),
+            ),
+            Declaration::new(
+                DeclarationProperty::Display,
+                DeclarationValue::Display(Display::Flex),
             ),
         ];
         let expect = Rule::new(selectors, declarations);
@@ -236,29 +251,47 @@ div > .table {
         let tests = vec![
             (
                 new("margin: auto ;"),
-                Declaration::new(Margin, Value::Other("auto".to_string())),
-            ),
-            (
-                new("padding : 10.5 px;"),
-                Declaration::new(Padding, Value::Length(10.5, Unit::Px)),
+                Declaration::new(Margin, DeclarationValue::Length(vec![Length::Auto])),
             ),
             (
                 new("color: #aa11ff22;"),
                 Declaration::new(
                     DeclarationProperty::Color,
-                    Value::Color(Color::new(0xaa, 0x11, 0xff, 0x22)),
+                    DeclarationValue::Color(Color::new(0xaa, 0x11, 0xff, 0x22)),
                 ),
             ),
             (
                 new("color: #aa11ff ;"),
                 Declaration::new(
                     DeclarationProperty::Color,
-                    Value::Color(Color::new(0xaa, 0x11, 0xff, 0x00)),
+                    DeclarationValue::Color(Color::new(0xaa, 0x11, 0xff, 0x00)),
                 ),
             ),
         ];
         for (mut parser, expect) in tests {
             assert_eq!(parser.parse_declaration(), expect)
+        }
+    }
+
+    #[test]
+    fn test_parse_declaration_length() {
+        let tests = vec![
+            (new("auto ;"), DeclarationValue::Length(vec![Length::Auto])),
+            (
+                new("1px auto;"),
+                DeclarationValue::Length(vec![Length::Actual(1.0, Px), Length::Auto]),
+            ),
+            (
+                new("auto 1em;"),
+                DeclarationValue::Length(vec![Length::Auto, Length::Actual(1.0, Em)]),
+            ),
+            (
+                new("1px 2em;"),
+                DeclarationValue::Length(vec![Length::Actual(1.0, Px), Length::Actual(2.0, Em)]),
+            ),
+        ];
+        for (mut parser, expect) in tests {
+            assert_eq!(parser.parse_declaration_value(&Margin), expect)
         }
     }
 

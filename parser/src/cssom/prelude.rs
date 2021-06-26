@@ -6,7 +6,7 @@ use std::iter::Peekable;
 use std::str::Chars;
 
 /// TODO: ???
-pub type PropertyMap<'a> = HashMap<&'a DeclarationProperty, &'a Value>;
+pub type PropertyMap<'a> = HashMap<&'a DeclarationProperty, &'a DeclarationValue>;
 
 /// Parser that convert raw CSS input to CSSOM(StyleSheet)
 #[derive(Debug)]
@@ -50,7 +50,7 @@ pub enum Selector {
 #[derive(Default, PartialEq)]
 pub struct Declaration {
     pub property: DeclarationProperty, // margin, padding, display, etc.
-    pub value: Value,                  // #cc0000, 10px, etc.
+    pub value: DeclarationValue,       // #cc0000, 10px, etc.
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -65,13 +65,17 @@ pub enum DeclarationProperty {
     PaddingRight,
     PaddingTop,
     PaddingBottom,
+    Width,
+    Height,
     Display,
     Color,
+    BackgroundColor,
+    BorderRadius,
     Other(String),
 }
 
-impl DeclarationProperty {
-    pub(crate) fn by_name(property_name: &str) -> Self {
+impl<'a> From<&'a str> for DeclarationProperty {
+    fn from(property_name: &'a str) -> Self {
         match property_name {
             "margin" => Self::Margin,
             "margin-left" => Self::MarginLeft,
@@ -83,8 +87,12 @@ impl DeclarationProperty {
             "padding-right" => Self::PaddingRight,
             "padding-top" => Self::PaddingTop,
             "padding-bottom" => Self::PaddingBottom,
+            "width" => Self::Width,
+            "height" => Self::Height,
             "display" => Self::Display,
             "color" => Self::Color,
+            "background-color" => Self::BackgroundColor,
+            "border-radius" => Self::BorderRadius,
             _ => Self::Other(property_name.to_string()),
         }
     }
@@ -98,10 +106,17 @@ impl Default for DeclarationProperty {
 
 /// CSS declaration value
 #[derive(PartialEq)]
-pub enum Value {
-    Color(Color),      // #cc0000
-    Length(f32, Unit), // 20px
-    Other(String),     // auto, none
+pub enum DeclarationValue {
+    Color(Color), // #cc0000
+    Length(Vec<Length>),
+    Display(Display),
+    Other(String),
+}
+
+#[derive(PartialEq)]
+pub enum Length {
+    Actual(f32, Unit),
+    Auto,
 }
 
 /// Unit of CSS declaration value
@@ -123,6 +138,15 @@ pub enum Unit {
     Pt,
     Pc,
     Pct,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Display {
+    None,
+    Block,
+    Inline,
+    InlineBlock,
+    Flex,
 }
 
 /// Color of CSS declaration value
@@ -194,12 +218,22 @@ impl fmt::Debug for Declaration {
     }
 }
 
-impl fmt::Debug for Value {
+impl fmt::Debug for DeclarationValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            Value::Color(ref color) => write!(f, "{:?}", color),
-            Value::Length(ref x, ref unit) => write!(f, "{}[{:?}]", x, unit),
-            Value::Other(ref s) => write!(f, "{:?}", s),
+            DeclarationValue::Color(ref color) => write!(f, "{:?}", color),
+            DeclarationValue::Length(length) => {
+                let mut s = String::new();
+                for len in length {
+                    s.push_str(&match len {
+                        Length::Actual(ref x, ref unit) => format!("{}[{:?}] ", x, unit),
+                        Length::Auto => "auto ".to_string(),
+                    });
+                }
+                write!(f, "{}", s)
+            }
+            DeclarationValue::Display(ref v) => write!(f, "{:?}", v),
+            DeclarationValue::Other(ref s) => write!(f, "{:?}", s),
         }
     }
 }

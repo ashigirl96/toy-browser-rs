@@ -27,11 +27,10 @@ impl<'a> StyleSheetParser<'a> {
     pub fn parse(&mut self) -> StyleSheet {
         let mut rules = vec![];
         loop {
-            if self.input.peek().is_none() {
+            if self.peek().is_none() {
                 break;
             }
             rules.push(self.parse_rule());
-            self.skip_whitespace();
         }
         StyleSheet::new(rules)
     }
@@ -40,7 +39,7 @@ impl<'a> StyleSheetParser<'a> {
     fn parse_rule(&mut self) -> Rule {
         let mut selectors = vec![];
         loop {
-            match self.input.peek().unwrap() {
+            match self.peek().unwrap() {
                 '{' => {
                     self.bump();
                     break;
@@ -50,7 +49,7 @@ impl<'a> StyleSheetParser<'a> {
         }
         let mut declarations = vec![];
         loop {
-            match self.input.peek().unwrap() {
+            match self.peek().unwrap() {
                 '}' => {
                     self.bump();
                     break;
@@ -67,14 +66,12 @@ impl<'a> StyleSheetParser<'a> {
         if let Some(',') = self.input.peek() {
             self.bump()
         };
-        self.skip_whitespace();
         selector
     }
 
     /// Parse one css selector, this used in `parse_selector`
     fn parse_one_selector(&mut self) -> Selector {
-        self.skip_whitespace();
-        let left = match self.input.peek() {
+        let left = match self.peek() {
             Some('a'..='z' | 'A'..='Z' | '0'..='9') => {
                 let tag_name = self.consume_identifier();
                 Some(Selector::Tag(ElementTagName::from(tag_name.as_ref())))
@@ -90,7 +87,7 @@ impl<'a> StyleSheetParser<'a> {
     ///   .box  → Selector::Class(None, "box".to_string()))
     ///   p#box → Selector::Id(Some(box (Selector::Tag(P))), "box".to_string()),
     fn parse_class_selector(&mut self, left: Option<Selector>) -> Selector {
-        match self.input.peek() {
+        match self.peek() {
             Some('.') => {
                 self.input.next();
                 let class = self.consume_identifier();
@@ -155,42 +152,81 @@ impl<'a> StyleSheetParser<'a> {
     ///   margin: auto; → Declaration::new(Margin, Value::Other("auto".to_string()))
     ///   padding: 10.5px; →  Declaration::new(Padding, Value::Length(10.5, Unit::Px))
     fn parse_declaration(&mut self) -> Declaration {
-        let property_name = self.consume_identifier();
+        let property = DeclarationProperty::from(self.consume_identifier().as_str());
         self.skip_next_ch(&':');
-        self.skip_whitespace();
-        let value = match self.input.peek() {
-            Some('#') => {
-                self.input.next();
-                let r = self.consume_hex(2);
-                let g = self.consume_hex(2);
-                let b = self.consume_hex(2);
-                let a = match self.input.peek() {
-                    Some(ch) if matches!(ch, '0'..='9' | 'a'..='z' | 'A'..='Z') => {
-                        self.consume_hex(2)
-                    }
-                    _ => 0,
-                };
-                Value::Color(Color::new(r, g, b, a))
-            }
-            Some('0'..='9') => {
-                let length = self.consume_number();
-                let unit_ident = self.consume_identifier();
-                let unit = match unit_ident.as_str() {
-                    "px" => Unit::Px,
-                    "em" => Unit::Em,
-                    _ => Unit::Px,
-                };
-                Value::Length(length, unit)
-            }
-            Some('a'..='z' | 'A'..='Z' | '-') => {
-                let ident = self.consume_identifier();
-                Value::Other(ident)
-            }
-            _ => panic!("Cannot parse declaration"),
-        };
+        let declaration_value = self.parse_declaration_value(&property);
         self.skip_next_ch(&';');
-        self.skip_whitespace();
-        Declaration::new(DeclarationProperty::by_name(&property_name), value)
+        Declaration::new(property, declaration_value)
+    }
+
+    fn parse_declaration_value(&mut self, property: &DeclarationProperty) -> DeclarationValue {
+        match property {
+            DeclarationProperty::Margin
+            | DeclarationProperty::MarginLeft
+            | DeclarationProperty::MarginRight
+            | DeclarationProperty::MarginTop
+            | DeclarationProperty::MarginBottom
+            | DeclarationProperty::Padding
+            | DeclarationProperty::PaddingLeft
+            | DeclarationProperty::PaddingRight
+            | DeclarationProperty::PaddingTop
+            | DeclarationProperty::PaddingBottom
+            | DeclarationProperty::Width
+            | DeclarationProperty::Height
+            | DeclarationProperty::BorderRadius => self.parse_declaration_length(),
+            DeclarationProperty::Color | DeclarationProperty::BackgroundColor => {
+                self.parse_declaration_color()
+            }
+            DeclarationProperty::Display => self.parse_declaration_display(),
+            DeclarationProperty::Other(_) => self.parse_declaration_other(),
+        }
+    }
+
+    fn parse_declaration_display(&mut self) -> DeclarationValue {
+        DeclarationValue::Display(Display::from(self.consume_identifier().as_str()))
+    }
+
+    fn parse_declaration_length(&mut self) -> DeclarationValue {
+        let mut length = vec![];
+        loop {
+            match self.peek() {
+                Some('0'..='9') => length.push(self.parse_declaration_actual_length()),
+                Some(';') => break DeclarationValue::Length(length),
+                Some(_) => {
+                    let _ = self.consume_identifier();
+                    length.push(Length::Auto) // TODO: Implement other case
+                }
+                _ => panic!("Cannot parse declaration lengths"),
+            }
+        }
+    }
+
+    fn parse_declaration_color(&mut self) -> DeclarationValue {
+        self.next();
+        let r = self.consume_hex(2);
+        let g = self.consume_hex(2);
+        let b = self.consume_hex(2);
+        let a = match self.input.peek() {
+            Some(ch) if matches!(ch, '0'..='9' | 'a'..='z' | 'A'..='Z') => self.consume_hex(2),
+            _ => 0,
+        };
+        DeclarationValue::Color(Color::new(r, g, b, a))
+    }
+
+    fn parse_declaration_actual_length(&mut self) -> Length {
+        let length = self.consume_number();
+        let unit_ident = self.consume_identifier();
+        let unit = match unit_ident.as_str() {
+            "px" => Unit::Px,
+            "em" => Unit::Em,
+            _ => Unit::Px,
+        };
+        Length::Actual(length, unit)
+    }
+
+    fn parse_declaration_other(&mut self) -> DeclarationValue {
+        let ident = self.consume_identifier();
+        DeclarationValue::Other(ident)
     }
 
     fn consume_identifier(&mut self) -> String {
@@ -259,6 +295,16 @@ impl<'a> StyleSheetParser<'a> {
             Some(c) => c,
             None => panic!("Cannot bump"),
         };
+    }
+
+    fn next(&mut self) {
+        self.skip_whitespace();
+        self.input.next();
+    }
+
+    fn peek(&mut self) -> Option<&char> {
+        self.skip_whitespace();
+        self.input.peek()
     }
 }
 
@@ -337,19 +383,32 @@ impl Selector {
 }
 
 impl Declaration {
-    pub fn new(property: DeclarationProperty, value: Value) -> Self {
+    pub fn new(property: DeclarationProperty, value: DeclarationValue) -> Self {
         Self { property, value }
     }
 }
 
-impl Default for Value {
+impl Default for DeclarationValue {
     fn default() -> Self {
-        Value::Other(String::from(""))
+        DeclarationValue::Other(String::from(""))
     }
 }
 
 impl Color {
     pub fn new(r: usize, g: usize, b: usize, a: usize) -> Self {
         Self { r, g, b, a }
+    }
+}
+
+impl<'a> From<&'a str> for Display {
+    fn from(key: &'a str) -> Self {
+        match key {
+            "none" => Self::None,
+            "block" => Self::Block,
+            "inline" => Self::Inline,
+            "inline-block" => Self::InlineBlock,
+            "flex" => Self::Flex,
+            _ => Self::Block,
+        }
     }
 }
