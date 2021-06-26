@@ -100,11 +100,7 @@ Mr. Lawrence.
     #[test]
     fn test_node_key_from() {
         use crate::dom::NodeKey::*;
-        let tests = vec![
-            ("id", Id),
-            ("class", Class),
-            ("href", Other("href".to_string())),
-        ];
+        let tests = vec![("id", Id), ("class", Class), ("href", Href)];
         for (input, expected) in tests {
             assert_eq!(NodeKey::from(input), expected);
         }
@@ -117,6 +113,9 @@ Mr. Lawrence.
             ("html", Html),
             ("main", Main),
             ("head", Head),
+            ("title", Title),
+            ("script", Script),
+            ("body", Body),
             ("div", Div),
             ("p", P),
             ("h1", H1),

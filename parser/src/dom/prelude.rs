@@ -39,11 +39,15 @@ pub enum ElementTagName {
     Main,
     Div,
     Head,
-    P,
+    Body,
+    Title,
+    Script,
     Article,
+    P,
     H1,
     H2,
     H3,
+    A,
     Other(String),
 }
 
@@ -59,6 +63,7 @@ pub type ElementAttributes = BTreeMap<NodeKey, String>;
 pub enum NodeKey {
     Id,
     Class,
+    Href,
     Other(String),
 }
 

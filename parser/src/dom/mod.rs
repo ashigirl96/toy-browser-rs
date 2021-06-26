@@ -13,6 +13,27 @@ impl<'a> DocumentObjectParser<'a> {
         }
     }
 
+    /// Parse raw HTML input to DOM
+    ///
+    /// ```
+    /// use crate::parser::DocumentObjectParser;
+    /// let html = r#"
+    /// <html>
+    ///   <head>
+    ///     <title>Example Domain</title>
+    ///   </head>
+    ///   <body>
+    ///     <div>
+    ///       <h1>Example Domain</h1>
+    ///       <p>This domain is for use in illustrative examples in documents. You may use this
+    ///       domain in literature without prior coordination or asking for permission.</p>
+    ///       <p><a href="https://www.iana.org/domains/example">More information...</a></p>
+    ///     </div>
+    ///   </body>
+    /// </html>
+    /// "#;
+    /// let mut dom = DocumentObjectParser::new(html).parse();
+    /// ```
     pub fn parse(&mut self) -> Node {
         self.parse_node()
     }
@@ -246,11 +267,15 @@ impl<'a> From<&'a str> for ElementTagName {
             "html" => Self::Html,
             "main" => Self::Main,
             "head" => Self::Head,
+            "title" => Self::Title,
+            "body" => Self::Body,
+            "script" => Self::Script,
             "div" => Self::Div,
             "p" => Self::P,
             "h1" => Self::H1,
             "h2" => Self::H2,
             "h3" => Self::H3,
+            "a" => Self::A,
             _ => Self::Other(tag_name.to_string()),
         }
     }
@@ -261,6 +286,7 @@ impl<'a> From<&'a str> for NodeKey {
         match key {
             "id" => Self::Id,
             "class" => Self::Class,
+            "href" => Self::Href,
             _ => Self::Other(key.to_string()),
         }
     }
