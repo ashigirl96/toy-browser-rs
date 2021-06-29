@@ -39,9 +39,11 @@ pub enum ElementTagName {
     Main,
     Div,
     Head,
+    Meta,
     Body,
     Title,
     Script,
+    Style,
     Article,
     P,
     H1,
@@ -71,5 +73,38 @@ impl fmt::Display for ElementTagName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = format!("{:?}", self).to_lowercase();
         write!(f, "{}", s)
+    }
+}
+
+impl<'a> From<&'a str> for ElementTagName {
+    fn from(tag_name: &'a str) -> Self {
+        match tag_name {
+            "html" => Self::Html,
+            "main" => Self::Main,
+            "head" => Self::Head,
+            "meta" => Self::Meta,
+            "title" => Self::Title,
+            "body" => Self::Body,
+            "style" => Self::Style,
+            "script" => Self::Script,
+            "div" => Self::Div,
+            "p" => Self::P,
+            "h1" => Self::H1,
+            "h2" => Self::H2,
+            "h3" => Self::H3,
+            "a" => Self::A,
+            _ => Self::Other(tag_name.to_string()),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for NodeKey {
+    fn from(key: &'a str) -> Self {
+        match key {
+            "id" => Self::Id,
+            "class" => Self::Class,
+            "href" => Self::Href,
+            _ => Self::Other(key.to_string()),
+        }
     }
 }

@@ -7,6 +7,5 @@ edition = "2018"
 
 # Monaka is iced HTML & CSS
 
-
 [dependencies]
 itertools = "0.10.1"
