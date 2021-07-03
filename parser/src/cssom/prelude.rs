@@ -113,14 +113,14 @@ pub enum DeclarationValue {
     Other(String),
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Length {
     Actual(f32, Unit),
     Auto,
 }
 
 /// Unit of CSS declaration value
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Debug, Clone)]
 pub enum Unit {
     Em,
     Ex,
