@@ -6,7 +6,7 @@ use std::iter::Peekable;
 use std::str::Chars;
 
 /// TODO: ???
-pub type PropertyMap<'a> = HashMap<&'a DeclarationProperty, &'a DeclarationValue>;
+pub type StyleMap<'a> = HashMap<&'a DeclarationProperty, &'a DeclarationValue>;
 
 /// Parser that convert raw CSS input to CSSOM(StyleSheet)
 #[derive(Debug)]
@@ -120,7 +120,7 @@ pub enum Length {
 }
 
 /// Unit of CSS declaration value
-#[derive(Debug, PartialEq, Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Unit {
     Em,
     Ex,

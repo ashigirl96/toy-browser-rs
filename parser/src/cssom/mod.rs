@@ -314,8 +314,8 @@ impl StyleSheet {
     }
 
     /// TODO: ??????
-    pub fn get_styles(&self, element: &Element) -> PropertyMap {
-        let mut styles = PropertyMap::new();
+    pub fn get_styles(&self, element: &Element) -> StyleMap {
+        let mut styles = StyleMap::new();
 
         for rule in self.rules.iter() {
             for selector in rule.selectors.iter() {
