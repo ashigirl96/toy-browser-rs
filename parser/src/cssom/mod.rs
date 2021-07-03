@@ -201,6 +201,17 @@ impl<'a> StyleSheetParser<'a> {
         }
     }
 
+    fn parse_declaration_actual_length(&mut self) -> Length {
+        let length = self.consume_number();
+        let unit_ident = self.consume_identifier();
+        let unit = match unit_ident.as_str() {
+            "px" => Unit::Px,
+            "em" => Unit::Em,
+            _ => Unit::Px,
+        };
+        Length::Actual(length, unit)
+    }
+
     fn parse_declaration_color(&mut self) -> DeclarationValue {
         self.next();
         let r = self.consume_hex(2);
@@ -211,17 +222,6 @@ impl<'a> StyleSheetParser<'a> {
             _ => 0,
         };
         DeclarationValue::Color(Color::new(r, g, b, a))
-    }
-
-    fn parse_declaration_actual_length(&mut self) -> Length {
-        let length = self.consume_number();
-        let unit_ident = self.consume_identifier();
-        let unit = match unit_ident.as_str() {
-            "px" => Unit::Px,
-            "em" => Unit::Em,
-            _ => Unit::Px,
-        };
-        Length::Actual(length, unit)
     }
 
     fn parse_declaration_other(&mut self) -> DeclarationValue {
