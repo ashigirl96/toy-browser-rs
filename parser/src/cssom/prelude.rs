@@ -108,7 +108,7 @@ impl Default for DeclarationProperty {
 #[derive(PartialEq)]
 pub enum DeclarationValue {
     Color(Color), // #cc0000
-    Length(Vec<Length>),
+    Length(Length),
     Display(Display),
     Other(String),
 }
@@ -223,13 +223,10 @@ impl fmt::Debug for DeclarationValue {
         match &self {
             DeclarationValue::Color(ref color) => write!(f, "{:?}", color),
             DeclarationValue::Length(length) => {
-                let mut s = String::new();
-                for len in length {
-                    s.push_str(&match len {
-                        Length::Actual(ref x, ref unit) => format!("{}[{:?}] ", x, unit),
-                        Length::Auto => "auto ".to_string(),
-                    });
-                }
+                let s = match length {
+                    Length::Actual(ref x, ref unit) => format!("{}[{:?}] ", x, unit),
+                    Length::Auto => "auto ".to_string(),
+                };
                 write!(f, "{}", s)
             }
             DeclarationValue::Display(ref v) => write!(f, "{:?}", v),

@@ -54,7 +54,15 @@ impl<'a> StyleSheetParser<'a> {
                     self.bump();
                     break;
                 }
-                _ => declarations.push(self.parse_declaration()),
+                _ => {
+                    use crate::prelude::DeclarationProperty::*;
+                    let property = DeclarationProperty::from(self.consume_identifier().as_str());
+                    self.skip_next_ch(&':');
+                    match property {
+                        Margin | Padding => declarations.extend(self.parse_declarations(property)),
+                        _ => declarations.push(self.parse_declaration(property)),
+                    }
+                }
             }
         }
         Rule::new(selectors, declarations)
@@ -146,59 +154,103 @@ impl<'a> StyleSheetParser<'a> {
         }
     }
 
+    fn parse_declarations(&mut self, property: DeclarationProperty) -> Vec<Declaration> {
+        use crate::prelude::DeclarationProperty::*;
+        match property {
+            Margin => self.parse_declaration_margin(),
+            Padding => self.parse_declaration_padding(),
+            _ => panic!("Cannot parse declarations"),
+        }
+    }
+
     /// Parse Declaration from css rule, this used in `parse_rule`
     ///
     /// e.g.
     ///   margin: auto; → Declaration::new(Margin, Value::Other("auto".to_string()))
     ///   padding: 10.5px; →  Declaration::new(Padding, Value::Length(10.5, Unit::Px))
-    fn parse_declaration(&mut self) -> Declaration {
-        let property = DeclarationProperty::from(self.consume_identifier().as_str());
-        self.skip_next_ch(&':');
-        let declaration_value = self.parse_declaration_value(&property);
-        self.skip_next_ch(&';');
-        Declaration::new(property, declaration_value)
-    }
-
-    fn parse_declaration_value(&mut self, property: &DeclarationProperty) -> DeclarationValue {
-        match property {
-            DeclarationProperty::Margin
-            | DeclarationProperty::MarginLeft
-            | DeclarationProperty::MarginRight
-            | DeclarationProperty::MarginTop
-            | DeclarationProperty::MarginBottom
-            | DeclarationProperty::Padding
-            | DeclarationProperty::PaddingLeft
-            | DeclarationProperty::PaddingRight
-            | DeclarationProperty::PaddingTop
-            | DeclarationProperty::PaddingBottom
-            | DeclarationProperty::Width
-            | DeclarationProperty::Height
-            | DeclarationProperty::BorderRadius => self.parse_declaration_length(),
-            DeclarationProperty::Color | DeclarationProperty::BackgroundColor => {
-                self.parse_declaration_color()
+    fn parse_declaration(&mut self, property: DeclarationProperty) -> Declaration {
+        use crate::prelude::DeclarationProperty::*;
+        let declaration = match property {
+            MarginLeft | MarginRight | MarginTop | MarginBottom | PaddingLeft | PaddingRight
+            | PaddingTop | PaddingBottom | Width | Height | BorderRadius => {
+                self.parse_declaration_length(property)
             }
-            DeclarationProperty::Display => self.parse_declaration_display(),
-            DeclarationProperty::Other(_) => self.parse_declaration_other(),
-        }
+            Color | BackgroundColor => self.parse_declaration_color(property),
+            Display => self.parse_declaration_display(),
+            Other(s) => self.parse_declaration_other(s),
+            _ => panic!("Cannot parse declaration"),
+        };
+        self.skip_next_ch(&';');
+        declaration
     }
 
-    fn parse_declaration_display(&mut self) -> DeclarationValue {
-        DeclarationValue::Display(Display::from(self.consume_identifier().as_str()))
+    fn parse_declaration_margin(&mut self) -> Vec<Declaration> {
+        use crate::prelude::DeclarationProperty::*;
+        let (top, right, bottom, left) = self.parse_declaration_lengths();
+        vec![
+            Declaration::new(MarginTop, DeclarationValue::Length(top)),
+            Declaration::new(MarginRight, DeclarationValue::Length(right)),
+            Declaration::new(MarginBottom, DeclarationValue::Length(bottom)),
+            Declaration::new(MarginLeft, DeclarationValue::Length(left)),
+        ]
     }
 
-    fn parse_declaration_length(&mut self) -> DeclarationValue {
+    fn parse_declaration_padding(&mut self) -> Vec<Declaration> {
+        use crate::prelude::DeclarationProperty::*;
+        let (top, right, bottom, left) = self.parse_declaration_lengths();
+        vec![
+            Declaration::new(PaddingTop, DeclarationValue::Length(top)),
+            Declaration::new(PaddingRight, DeclarationValue::Length(right)),
+            Declaration::new(PaddingBottom, DeclarationValue::Length(bottom)),
+            Declaration::new(PaddingLeft, DeclarationValue::Length(left)),
+        ]
+    }
+
+    fn parse_declaration_length(&mut self, prop: DeclarationProperty) -> Declaration {
+        let length = match self.peek() {
+            Some('0'..='9') => self.parse_declaration_actual_length(),
+            Some(_) => {
+                let _ = self.consume_identifier();
+                Length::Auto // TODO: Implement other case
+            }
+            _ => panic!("Cannot parse declaration lengths"),
+        };
+        Declaration::new(prop, DeclarationValue::Length(length))
+    }
+
+    fn parse_declaration_lengths(&mut self) -> (Length, Length, Length, Length) {
         let mut length = vec![];
-        loop {
+        let values = loop {
             match self.peek() {
                 Some('0'..='9') => length.push(self.parse_declaration_actual_length()),
-                Some(';') => break DeclarationValue::Length(length),
+                Some(';') => break length,
                 Some(_) => {
                     let _ = self.consume_identifier();
                     length.push(Length::Auto) // TODO: Implement other case
                 }
                 _ => panic!("Cannot parse declaration lengths"),
             }
-        }
+        };
+        self.skip_next_ch(&';');
+        let values = values.as_slice();
+
+        let (top, right, bottom, left) = match values {
+            [top] => (top.clone(), top.clone(), top.clone(), top.clone()),
+            [top, right] => (top.clone(), right.clone(), top.clone(), right.clone()),
+            [top, right, bottom] => (top.clone(), right.clone(), bottom.clone(), right.clone()),
+            [top, right, bottom, left] => {
+                (top.clone(), right.clone(), bottom.clone(), left.clone())
+            }
+            _ => panic!("Cannot parse declaration margin"),
+        };
+        (top, right, bottom, left)
+    }
+
+    fn parse_declaration_display(&mut self) -> Declaration {
+        Declaration::new(
+            DeclarationProperty::Display,
+            DeclarationValue::Display(Display::from(self.consume_identifier().as_str())),
+        )
     }
 
     fn parse_declaration_actual_length(&mut self) -> Length {
@@ -212,7 +264,7 @@ impl<'a> StyleSheetParser<'a> {
         Length::Actual(length, unit)
     }
 
-    fn parse_declaration_color(&mut self) -> DeclarationValue {
+    fn parse_declaration_color(&mut self, property: DeclarationProperty) -> Declaration {
         self.next();
         let r = self.consume_hex(2);
         let g = self.consume_hex(2);
@@ -221,12 +273,15 @@ impl<'a> StyleSheetParser<'a> {
             Some(ch) if matches!(ch, '0'..='9' | 'a'..='z' | 'A'..='Z') => self.consume_hex(2),
             _ => 0,
         };
-        DeclarationValue::Color(Color::new(r, g, b, a))
+        Declaration::new(property, DeclarationValue::Color(Color::new(r, g, b, a)))
     }
 
-    fn parse_declaration_other(&mut self) -> DeclarationValue {
+    fn parse_declaration_other(&mut self, s: String) -> Declaration {
         let ident = self.consume_identifier();
-        DeclarationValue::Other(ident)
+        Declaration::new(
+            DeclarationProperty::Other(s),
+            DeclarationValue::Other(ident),
+        )
     }
 
     fn consume_identifier(&mut self) -> String {
