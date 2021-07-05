@@ -1,5 +1,8 @@
 #[cfg(test)]
 mod tests {
+    use crate::prelude::DeclarationProperty::{MarginLeft, PaddingBottom, PaddingRight};
+    use crate::prelude::Length;
+    use crate::prelude::Unit::{Em, Px};
     use crate::{DocumentObjectParser, RenderObject, StyleSheetParser};
 
     #[test]
@@ -44,8 +47,24 @@ div {
 
         let dom = DocumentObjectParser::new(html).parse();
         let css = StyleSheetParser::new(css).parse();
-        let render_tree = RenderObject::new(&dom, &css).unwrap();
+        let render_tree = RenderObject::new(&dom, &css);
 
         println!("{}", render_tree);
+    }
+
+    #[test]
+    fn test_lookup_length() {
+        let dom = DocumentObjectParser::new(r#"<div />"#).parse();
+        let css = StyleSheetParser::new(r#"div { margin: 10em; padding-right: 3px; }"#).parse();
+        let tree = RenderObject::new(&dom, &css);
+
+        let tests = vec![
+            (MarginLeft, Some(Length::Actual(10.0, Em))),
+            (PaddingRight, Some(Length::Actual(3.0, Px))),
+            (PaddingBottom, None),
+        ];
+        for (prop, length) in tests {
+            assert_eq!(tree.lookup_length(&prop), length);
+        }
     }
 }

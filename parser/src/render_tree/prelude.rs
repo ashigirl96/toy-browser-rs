@@ -1,10 +1,10 @@
-use crate::prelude::{Node, PropertyMap};
+use crate::prelude::{Node, StyleMap};
 use std::fmt;
 use std::fmt::Formatter;
 
 pub struct RenderObject<'a> {
     pub node: &'a Node,
-    pub styles: PropertyMap<'a>,
+    pub styles: StyleMap<'a>,
     pub children: Vec<RenderObject<'a>>,
 }
 

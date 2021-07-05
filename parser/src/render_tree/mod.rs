@@ -1,15 +1,20 @@
 use super::RenderObject;
 use crate::prelude::{
-    DeclarationProperty, DeclarationValue, Display, ElementTagName, Node, PropertyMap, StyleSheet,
+    DeclarationProperty, DeclarationValue, Display, ElementTagName, Length, Node, StyleMap,
+    StyleSheet,
 };
 
 pub mod prelude;
 mod test;
 
 impl<'a> RenderObject<'a> {
-    pub fn new(node: &'a Node, stylesheet: &'a StyleSheet) -> Option<Self> {
+    pub fn new<'b: 'a>(node: &'b Node, stylesheet: &'b StyleSheet) -> Self {
+        Self::build(node, stylesheet).unwrap()
+    }
+
+    pub fn build<'b: 'a>(node: &'b Node, stylesheet: &'b StyleSheet) -> Option<Self> {
         let mut children = Vec::new();
-        let styles: PropertyMap;
+        let styles: StyleMap;
         match node {
             Node::Element(e) => {
                 if let ElementTagName::Meta | ElementTagName::Script = e.tag_name {
@@ -22,13 +27,13 @@ impl<'a> RenderObject<'a> {
                     return None;
                 }
                 for child in e.children.iter() {
-                    if let Some(ch) = Self::new(child, stylesheet) {
+                    if let Some(ch) = Self::build(child, stylesheet) {
                         children.push(ch)
                     }
                 }
             }
             _ => {
-                styles = PropertyMap::new();
+                styles = StyleMap::new();
             }
         };
 
@@ -53,5 +58,16 @@ impl<'a> RenderObject<'a> {
 
     pub fn value(&self, name: &DeclarationProperty) -> Option<&&'a DeclarationValue> {
         self.styles.get(name)
+    }
+
+    #[allow(dead_code)]
+    fn lookup_length(&self, property: &DeclarationProperty) -> Option<Length> {
+        if let Some(v) = self.value(property) {
+            if let DeclarationValue::Length(ref v) = v {
+                return Some(v.clone());
+            }
+            return None;
+        }
+        None
     }
 }
