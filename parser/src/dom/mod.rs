@@ -60,7 +60,7 @@ impl<'a> DocumentObjectParser<'a> {
     fn parse_element(&mut self) -> Element {
         let tag_name = self.parse_element_tag();
         let attributes = match self.peek() {
-            Some('>') => ElementAttributes::new(),
+            Some('/' | '>') => ElementAttributes::new(),
             Some('a'..='z' | 'A'..='Z') => self.parse_element_attributes(),
             _ => panic!("Cannot parse element"),
         };
