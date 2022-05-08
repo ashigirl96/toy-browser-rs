@@ -1,12 +1,12 @@
-use crate::prelude::ElementTagName;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Debug;
 use std::iter::Peekable;
 use std::str::Chars;
+use super::ElementTagName;
 
 /// TODO: ???
-pub type StyleMap<'a> = HashMap<&'a DeclarationProperty, &'a DeclarationValue>;
+pub type StyleMap = HashMap<DeclarationProperty, DeclarationValue>;
 
 /// Parser that convert raw CSS input to CSSOM(StyleSheet)
 #[derive(Debug)]
@@ -15,31 +15,43 @@ pub struct StyleSheetParser<'a> {
 }
 
 /// CSSOM. i.e. possess some CSS Rule
-#[derive(Default, PartialEq)]
+#[derive(Default, PartialEq, Clone)]
 pub struct StyleSheet {
     pub(crate) rules: Vec<Rule>,
+    // TODO: impl better
+    pub(crate) media_query: Option<String>,
 }
 
 /// CSS Rule.
 /// h1, h2, div.note, #answer {
 ///   margin: auto; color: #cc0000
 /// }
-#[derive(Default, PartialEq)]
+#[derive(Default, PartialEq, Clone)]
 pub struct Rule {
-    pub(crate) selectors: Vec<Selector>, // h1, h2, h3, div.note, #answer
-    pub(crate) declarations: Vec<Declaration>, // { margin: auto; color: #cc0000; }
+    // h1, h2, h3, div.note, #answer
+    pub(crate) selectors: Vec<Selector>,
+    // { margin: auto; color: #cc0000; }
+    pub(crate) declarations: Vec<Declaration>,
 }
 
 /// CSS Selector
 /// e.g.
 ///   h1, .note, #modal, div > p, h1 + p
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum Selector {
-    Tag(ElementTagName),                    // h1, div, etc.
-    Class(Option<Box<Selector>>, String),   // .note, div.note, etc.
-    Id(Option<Box<Selector>>, String),      // #note, div#note, etc.
-    Child(Box<Selector>, Box<Selector>),    // div > p, main > article, etc.
-    Adjacent(Box<Selector>, Box<Selector>), // h1 + p
+    // h1, div, etc.
+    Tag(ElementTagName),
+    // .note, div.note, etc.
+    Class(Option<Box<Selector>>, String),
+    // #note, div#note, etc.
+    Id(Option<Box<Selector>>, String),
+    // div > p, main > article, etc.
+    Child(Box<Selector>, Box<Selector>),
+    // h1 + p
+    Adjacent(Box<Selector>, Box<Selector>),
+    // a:link, a:visited
+    Pseudo(Option<Box<Selector>>, PseudoClass),
+    // @media (max-width: 700px)
 }
 
 /// CSS Declaration
@@ -47,13 +59,14 @@ pub enum Selector {
 ///   margin: 10px
 ///   div: #cc0000
 ///   display: none
-#[derive(Default, PartialEq)]
+#[derive(Default, PartialEq, Clone)]
 pub struct Declaration {
-    pub property: DeclarationProperty, // margin, padding, display, etc.
-    pub value: DeclarationValue,       // #cc0000, 10px, etc.
+    pub property: DeclarationProperty,
+    // margin, padding, display, etc.
+    pub value: DeclarationValue, // #cc0000, 10px, etc.
 }
 
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum DeclarationProperty {
     Margin,
     MarginLeft,
@@ -71,6 +84,9 @@ pub enum DeclarationProperty {
     Color,
     BackgroundColor,
     BorderRadius,
+    TextDecoration,
+    BoxShadow,
+    FontFamily,
     Other(String),
 }
 
@@ -93,7 +109,33 @@ impl<'a> From<&'a str> for DeclarationProperty {
             "color" => Self::Color,
             "background-color" => Self::BackgroundColor,
             "border-radius" => Self::BorderRadius,
+            "text-decoration" => Self::TextDecoration,
+            "box-shadow" => Self::BoxShadow,
+            "font-family" => Self::FontFamily,
             _ => Self::Other(property_name.to_string()),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for Display {
+    fn from(key: &'a str) -> Self {
+        match key {
+            "none" => Self::None,
+            "block" => Self::Block,
+            "inline" => Self::Inline,
+            "inline-block" => Self::InlineBlock,
+            "flex" => Self::Flex,
+            _ => Self::Block,
+        }
+    }
+}
+
+impl<'a> From<&'a str> for TextDecoration {
+    fn from(key: &'a str) -> Self {
+        match key {
+            "none" => Self::None,
+            "underline" => Self::Underline,
+            _ => Self::None,
         }
     }
 }
@@ -105,11 +147,14 @@ impl Default for DeclarationProperty {
 }
 
 /// CSS declaration value
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum DeclarationValue {
-    Color(Color), // #cc0000
+    // #cc0000
+    Color(Color),
     Length(Length),
     Display(Display),
+    TextDecoration(TextDecoration),
+    BoxShadow(BoxShadow),
     Other(String),
 }
 
@@ -120,6 +165,7 @@ pub enum Length {
 }
 
 /// Unit of CSS declaration value
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum Unit {
     Em,
@@ -140,7 +186,7 @@ pub enum Unit {
     Pct,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Display {
     None,
     Block,
@@ -150,12 +196,45 @@ pub enum Display {
 }
 
 /// Color of CSS declaration value
-#[derive(Default, PartialEq)]
+#[derive(Default, PartialEq, Clone)]
 pub struct Color {
     pub r: usize,
     pub g: usize,
     pub b: usize,
     pub a: usize,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
+pub enum TextDecoration {
+    None,
+    Underline,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BoxShadow {
+    pub offset_x: Length,
+    pub offset_y: Length,
+    pub blur_radius: Length,
+    pub spread_radius: Length,
+    pub color: Color,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub enum PseudoClass {
+    Link,
+    Visited,
+    // TODO: impl others...
+    Other(String),
+}
+
+impl<'a> From<&'a str> for PseudoClass {
+    fn from(pseudo_class: &'a str) -> Self {
+        match pseudo_class {
+            "link" => Self::Link,
+            "visited" => Self::Visited,
+            _ => Self::Other(pseudo_class.to_string()),
+        }
+    }
 }
 
 impl fmt::Debug for StyleSheet {
@@ -208,6 +287,10 @@ impl fmt::Debug for Selector {
             },
             Selector::Child(p, c) => write!(f, "{:?} > {:?}", p, c),
             Selector::Adjacent(l, r) => write!(f, "{:?} + {:?}", l, r),
+            Selector::Pseudo(tag, pc) => match tag {
+                Some(selector) => write!(f, "{:?}:{:?}", selector, pc),
+                None => write!(f, "#{:?}", pc),
+            },
         }
     }
 }
@@ -230,6 +313,8 @@ impl fmt::Debug for DeclarationValue {
                 write!(f, "{}", s)
             }
             DeclarationValue::Display(ref v) => write!(f, "{:?}", v),
+            DeclarationValue::TextDecoration(ref v) => write!(f, "{:?}", v),
+            DeclarationValue::BoxShadow(ref v) => write!(f, "{:?}", v),
             DeclarationValue::Other(ref s) => write!(f, "{:?}", s),
         }
     }

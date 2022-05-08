@@ -1,7 +1,8 @@
+use std::iter::FromIterator;
+
 use itertools::Itertools;
 
-use crate::prelude::*;
-use std::iter::FromIterator;
+use super::*;
 
 pub mod prelude;
 mod test;
@@ -35,6 +36,7 @@ impl<'a> DocumentObjectParser<'a> {
     /// let mut dom = DocumentObjectParser::new(html).parse();
     /// ```
     pub fn parse(&mut self) -> Node {
+        self.skip_doctype(); //TODO: <!doctype html>をskipしてる
         self.parse_node()
     }
 
@@ -71,11 +73,23 @@ impl<'a> DocumentObjectParser<'a> {
             }
             Some('>') => {
                 self.skip_next_ch(&'>');
-                self.parse_children()
+                if tag_name == ElementTagName::Style {
+                    // TODO: find better practice
+                    self.skip_style()
+                } else {
+                    self.parse_children()
+                }
             }
             _ => panic!("Cannot parse element"),
         };
         Element::new(tag_name, attributes, children)
+    }
+
+    // TODO: find better practice
+    fn skip_style(&mut self) -> Vec<Node> {
+        let style = vec![Node::Style(self.consume(&|ch| !matches!(ch, '<' | '>')))];
+        self.parse_node();
+        style
     }
 
     fn parse_element_attributes(&mut self) -> ElementAttributes {
@@ -111,6 +125,10 @@ impl<'a> DocumentObjectParser<'a> {
         ElementTagName::from(tag_name.as_ref())
     }
 
+    fn skip_doctype(&mut self) {
+        self.skip_next_str("<!doctype html>");
+    }
+
     fn parse_comment(&mut self) -> String {
         self.skip_next_str("!--");
         let comment = self.consume(&|ch| !matches!(ch, '-'));
@@ -122,7 +140,7 @@ impl<'a> DocumentObjectParser<'a> {
         self.consume(&|ch| !matches!(ch, '<' | '>'))
             .trim_end()
             .to_owned()
-            .replace("\n", " ") // TODO: find better practice
+            .replace('\n', " ") // TODO: find better practice
     }
 
     fn consume_identifier(&mut self) -> String {

@@ -1,4 +1,5 @@
-use crate::prelude::*;
+use super::cssom::prelude::*;
+use super::dom::prelude::{Element, ElementTagName};
 
 pub mod prelude;
 mod test;
@@ -26,17 +27,37 @@ impl<'a> StyleSheetParser<'a> {
     /// ```
     pub fn parse(&mut self) -> StyleSheet {
         let mut rules = vec![];
+        let mut media_query: Option<String> = None;
         loop {
             if self.peek().is_none() {
                 break;
             }
-            rules.push(self.parse_rule());
+            media_query = match self.peek().unwrap() {
+                // TODO: impl better
+                '@' => {
+                    self.bump();
+                    let media_query = self.consume(&|ch| !matches!(ch, '{'));
+                    self.skip_next_ch(&'{');
+                    Some(media_query)
+                }
+                _ => None,
+            };
+            let rule = self.parse_rule();
+            if media_query.is_some() {
+                self.skip_whitespace();
+                self.skip_next_ch(&'}');
+            }
+            // TODO: impl better. now ignore media query
+            if media_query.is_none() {
+                rules.push(rule);
+            }
         }
-        StyleSheet::new(rules)
+        StyleSheet::new(rules, media_query)
     }
 
     /// Parse one CSS Rule, this used in `parse`
     fn parse_rule(&mut self) -> Rule {
+        use super::DeclarationProperty::*;
         let mut selectors = vec![];
         loop {
             match self.peek().unwrap() {
@@ -55,7 +76,7 @@ impl<'a> StyleSheetParser<'a> {
                     break;
                 }
                 _ => {
-                    use crate::prelude::DeclarationProperty::*;
+                    // use crate::prelude::DeclarationProperty::*;
                     let property = DeclarationProperty::from(self.consume_identifier().as_str());
                     self.skip_next_ch(&':');
                     match property {
@@ -115,6 +136,15 @@ impl<'a> StyleSheetParser<'a> {
                 self.parse_sibling_selector(Some(left))
             }
             Some('+' | '>') => self.parse_sibling_selector(left),
+            Some(':') => {
+                self.input.next();
+                let pseudo_class = PseudoClass::from(self.consume_identifier().as_str());
+                let left = match left {
+                    Some(selector) => Selector::Pseudo(Some(box (selector)), pseudo_class),
+                    None => Selector::Pseudo(None, pseudo_class), // TODO: このケース存在するのか？
+                };
+                self.parse_sibling_selector(Some(left))
+            }
             _ => left.unwrap(),
         }
     }
@@ -155,7 +185,7 @@ impl<'a> StyleSheetParser<'a> {
     }
 
     fn parse_declarations(&mut self, property: DeclarationProperty) -> Vec<Declaration> {
-        use crate::prelude::DeclarationProperty::*;
+        use super::DeclarationProperty::*;
         match property {
             Margin => self.parse_declaration_margin(),
             Padding => self.parse_declaration_padding(),
@@ -169,14 +199,17 @@ impl<'a> StyleSheetParser<'a> {
     ///   margin: auto; → Declaration::new(Margin, Value::Other("auto".to_string()))
     ///   padding: 10.5px; →  Declaration::new(Padding, Value::Length(10.5, Unit::Px))
     fn parse_declaration(&mut self, property: DeclarationProperty) -> Declaration {
-        use crate::prelude::DeclarationProperty::*;
+        use super::DeclarationProperty::*;
         let declaration = match property {
             MarginLeft | MarginRight | MarginTop | MarginBottom | PaddingLeft | PaddingRight
             | PaddingTop | PaddingBottom | Width | Height | BorderRadius => {
                 self.parse_declaration_length(property)
             }
+            FontFamily => self.parse_font_family(),
+            BoxShadow => self.parse_declaration_box_shadow(),
             Color | BackgroundColor => self.parse_declaration_color(property),
             Display => self.parse_declaration_display(),
+            TextDecoration => self.parse_declaration_text_decoration(),
             Other(s) => self.parse_declaration_other(s),
             _ => panic!("Cannot parse declaration"),
         };
@@ -184,8 +217,35 @@ impl<'a> StyleSheetParser<'a> {
         declaration
     }
 
+    // TODO: impl better
+    fn parse_declaration_box_shadow(&mut self) -> Declaration {
+        let offset_x = self.parse_declaration_actual_length();
+        let offset_y = self.parse_declaration_actual_length();
+        let blur_radius = self.parse_declaration_actual_length();
+        let spread_radius = self.parse_declaration_actual_length();
+        let color = self.parse_rgba();
+        let box_shadow = BoxShadow {
+            offset_x,
+            offset_y,
+            blur_radius,
+            spread_radius,
+            color,
+        };
+        Declaration::new(
+            DeclarationProperty::BoxShadow,
+            DeclarationValue::BoxShadow(box_shadow),
+        )
+    }
+
+    // TODO: impl better
+    fn parse_font_family(&mut self) -> Declaration {
+        use super::DeclarationProperty::*;
+        let font = self.consume(&|ch| !matches!(ch, ';'));
+        Declaration::new(FontFamily, DeclarationValue::Other(font))
+    }
+
     fn parse_declaration_margin(&mut self) -> Vec<Declaration> {
-        use crate::prelude::DeclarationProperty::*;
+        use super::DeclarationProperty::*;
         let (top, right, bottom, left) = self.parse_declaration_lengths();
         vec![
             Declaration::new(MarginTop, DeclarationValue::Length(top)),
@@ -196,7 +256,7 @@ impl<'a> StyleSheetParser<'a> {
     }
 
     fn parse_declaration_padding(&mut self) -> Vec<Declaration> {
-        use crate::prelude::DeclarationProperty::*;
+        use super::DeclarationProperty::*;
         let (top, right, bottom, left) = self.parse_declaration_lengths();
         vec![
             Declaration::new(PaddingTop, DeclarationValue::Length(top)),
@@ -253,6 +313,15 @@ impl<'a> StyleSheetParser<'a> {
         )
     }
 
+    fn parse_declaration_text_decoration(&mut self) -> Declaration {
+        Declaration::new(
+            DeclarationProperty::TextDecoration,
+            DeclarationValue::TextDecoration(TextDecoration::from(
+                self.consume_identifier().as_str(),
+            )),
+        )
+    }
+
     fn parse_declaration_actual_length(&mut self) -> Length {
         let length = self.consume_number();
         let unit_ident = self.consume_identifier();
@@ -274,6 +343,24 @@ impl<'a> StyleSheetParser<'a> {
             _ => 0,
         };
         Declaration::new(property, DeclarationValue::Color(Color::new(r, g, b, a)))
+    }
+
+    fn parse_rgba(&mut self) -> Color {
+        self.skip_next_str("rgba(");
+        let r = self.consume_number() as usize;
+        self.skip_next_ch(&',');
+        let g = self.consume_number() as usize;
+        self.skip_next_ch(&',');
+        let b = self.consume_number() as usize;
+        let a = match self.input.peek() {
+            Some(ch) if matches!(ch, ',') => {
+                self.skip_next_ch(&',');
+                self.consume_number() as usize
+            }
+            _ => 0_usize,
+        };
+        self.skip_next_ch(&')');
+        Color::new(r, g, b, a)
     }
 
     fn parse_declaration_other(&mut self, s: String) -> Declaration {
@@ -361,11 +448,24 @@ impl<'a> StyleSheetParser<'a> {
         self.skip_whitespace();
         self.input.peek()
     }
+
+    fn skip_next_str(&mut self, s: &'static str) {
+        self.skip_whitespace();
+        for ch in s.chars() {
+            match self.input.next() {
+                Some(c) if c == ch => {}
+                _ => panic!("Cannot found {}", ch),
+            };
+        }
+    }
 }
 
 impl StyleSheet {
-    pub fn new(rules: Vec<Rule>) -> Self {
-        Self { rules }
+    pub fn new(rules: Vec<Rule>, media_query: Option<String>) -> Self {
+        Self {
+            rules,
+            media_query,
+        }
     }
 
     /// TODO: ??????
@@ -376,7 +476,7 @@ impl StyleSheet {
             for selector in rule.selectors.iter() {
                 if selector.matches(element) {
                     for declaration in rule.declarations.iter() {
-                        styles.insert(&declaration.property, &declaration.value);
+                        styles.insert(declaration.property.clone(), declaration.value.clone());
                     }
                     break;
                 }
@@ -452,18 +552,5 @@ impl Default for DeclarationValue {
 impl Color {
     pub fn new(r: usize, g: usize, b: usize, a: usize) -> Self {
         Self { r, g, b, a }
-    }
-}
-
-impl<'a> From<&'a str> for Display {
-    fn from(key: &'a str) -> Self {
-        match key {
-            "none" => Self::None,
-            "block" => Self::Block,
-            "inline" => Self::Inline,
-            "inline-block" => Self::InlineBlock,
-            "flex" => Self::Flex,
-            _ => Self::Block,
-        }
     }
 }

@@ -2,18 +2,17 @@
 name = "wabi-rs"
 version = "0.1.0"
 authors = ["ashigirl96 <reon@mma.cs.tsukuba.ac.jp>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-anyhow = "1.0.40"
 
 [dev-dependencies.cargo-husky]
 version = "1.5.0"
 default-features = false  # invalidate default features
 features = ["precommit-hook", "run-cargo-test", "run-cargo-clippy"]
 
-[lib]
-name = "browser_lib"
-path = "lib/browser.rs"
+[dependencies]
+anyhow = "1.0.40"
+druid = { git = "https://github.com/linebender/druid.git" }
+itertools = "0.10.3"
+

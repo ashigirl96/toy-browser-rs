@@ -16,9 +16,35 @@ pub struct DocumentObjectParser<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
     Text(String),
+    Style(String),
     Element(Element),
     Comment(String),
     EndTag, // Document,
+}
+
+impl Node {
+    // TODO: refactor
+    pub fn extract_style(&self) -> String {
+        if let Node::Style(style) = self.find_style().unwrap().children[0].clone() {
+            style
+        } else {
+            "".to_string()
+        }
+    }
+    fn find_style(&self) -> Option<Element> {
+        match self {
+            Node::Element(elem) => elem.find_style(),
+            _ => None,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn name(&self) -> String {
+        match self {
+            Node::Element(ref elem) => elem.tag_name.to_string(),
+            _ => "".to_string(),
+        }
+    }
 }
 
 /// HTML Element
@@ -29,6 +55,28 @@ pub struct Element {
     pub tag_name: ElementTagName,
     pub attributes: ElementAttributes,
     pub children: Vec<Node>,
+}
+
+impl Element {
+    fn find_style(&self) -> Option<Self> {
+        if self.children.is_empty() {
+            return None;
+        }
+        if self.is_style() {
+            return Some(self.clone());
+        }
+        for child in self.children.iter() {
+            let elem = child.find_style();
+            if elem.is_some() {
+                return elem;
+            }
+        }
+        None
+    }
+
+    fn is_style(&self) -> bool {
+        self.tag_name == ElementTagName::Style
+    }
 }
 
 /// HTML Element tagName
@@ -44,6 +92,7 @@ pub enum ElementTagName {
     Title,
     Script,
     Style,
+    #[allow(dead_code)]
     Article,
     P,
     H1,
