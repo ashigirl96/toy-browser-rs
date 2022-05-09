@@ -6,6 +6,7 @@ use druid::{
     AppLauncher, Color, FontDescriptor, FontFamily, FontWeight, Widget, WidgetExt, WindowDesc,
 };
 use prelude::Browser;
+use tokio::runtime::Runtime;
 
 const TEXT_COLOR: Color = Color::rgb8(0x00, 0x00, 0x00);
 
@@ -19,67 +20,19 @@ impl Browser {
     }
 
     pub fn run(self) {
-        eprintln!("self.url = {:#?}", self.url);
-        let app = WindowDesc::new(build_ui()).window_size((700.0, 400.0));
+        let mut rt = Runtime::new().unwrap();
+        let html = fetch_html(&self.url, &mut rt);
+        let app = WindowDesc::new(build_ui(&html)).window_size((700.0, 400.0));
         AppLauncher::with_window(app).launch(()).expect("error");
     }
 }
 
-fn fetch() -> String {
-    let html = r#"
-<!doctype html>
-<html>
-<head>
-    <title>Example Domain</title>
-
-    <meta charset="utf-8" />
-    <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style type="text/css">
-    body {
-        background-color: #f0f0f2;
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-
-    }
-    div {
-        width: 600px;
-        margin: 5em auto;
-        padding: 2em;
-        background-color: #fdfdff;
-        border-radius: 0.5em;
-        box-shadow: 2px 3px 7px 2px rgba(0,0,0,0.02);
-    }
-    a:link, a:visited {
-        color: #38488f;
-        text-decoration: none;
-    }
-    @media (max-width: 700px) {
-        div {
-            margin: 0 auto;
-            width: auto;
-        }
-    }
-    </style>
-</head>
-
-<body>
-<div>
-    <h1>Example Domain</h1>
-    <p>This domain is for use in illustrative examples in documents. You may use this
-    domain in literature without prior coordination or asking for permission.</p>
-    <p><a href="https://www.iana.org/domains/example">More information...</a></p>
-</div>
-</body>
-</html>
-"#;
-    html.to_string()
+fn fetch_html(url: &str, rt: &mut Runtime) -> String {
+    rt.block_on(async { reqwest::get(url).await.unwrap().text().await.unwrap() })
 }
 
-fn build_ui() -> impl Widget<()> {
-    let html = fetch();
-    let dom = DocumentObjectParser::new(html.as_str()).parse();
+fn build_ui(html: &str) -> impl Widget<()> {
+    let dom = DocumentObjectParser::new(html).parse();
     let style = dom.extract_style();
     let css = StyleSheetParser::new(&style).parse();
     let render_object = RenderObject::build(dom, css).unwrap();
