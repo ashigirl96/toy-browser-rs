@@ -8,6 +8,11 @@ Simple browser using Druid that only open example.com
 - [x] HTTP Client
 - [x] Rendering Engine
 
+## cargo run
+
+<img width="812" alt="image" src="https://user-images.githubusercontent.com/29683674/167339387-070795e0-77ac-424a-96b6-774676d656e5.png">
+
+
 ## Reference
 
 Render Tree / Layout Tree構築のため[robinson](https://github.com/mbrubeck/robinson) を参考にさせてもらいました
