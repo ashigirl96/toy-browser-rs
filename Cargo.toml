@@ -1,5 +1,5 @@
 [package]
-name = "wabi-rs"
+name = "toy-browser-rs"
 version = "0.1.0"
 authors = ["ashigirl96 <reon@mma.cs.tsukuba.ac.jp>"]
 edition = "2021"
